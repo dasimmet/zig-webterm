@@ -1,0 +1,3 @@
+[submodule "libs/zig-js"]
+	path = libs/zig-js
+	url = https://github.com/mitchellh/zig-js.git
