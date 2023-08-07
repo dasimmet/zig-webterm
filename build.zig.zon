@@ -1,0 +1,10 @@
+.{
+    .name = "zig-webterm",
+    .version = "0.0.1",
+    .dependencies = .{
+        .zigjs = .{
+            .url = "https://github.com/dasimmet/zig-js/archive/68a1784b799019f8c6debc26c14c414e2e19447b.tar.gz",
+            .hash = "12200d0f4c603971e6d66160bc638b37bfd43ad0c5c253b2ad233de1bec613bcc71f",
+        },
+    },
+}
