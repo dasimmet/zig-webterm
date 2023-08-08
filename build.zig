@@ -22,7 +22,7 @@ pub fn build(b: *std.Build) void {
     else b.dependency("zigjs", .{});
 
     const lib = b.addSharedLibrary(.{
-        .name = "zig-webterm",
+        .name = "client",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
         .root_source_file = .{ .path = "src/main.zig" },
@@ -35,6 +35,14 @@ pub fn build(b: *std.Build) void {
     lib.rdynamic = true;
     lib.addModule("zig-js", zigjs.module("zig-js"));
     b.installArtifact(lib);
+
+    const server = b.addExecutable(.{
+        .name = "server",
+        .root_source_file = .{ .path = "src/server.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    b.step("run", "run the server").dependOn(&b.addRunArtifact(server).step);
 
     // Creates a step for unit testing.
     const main_tests = b.addTest(.{
