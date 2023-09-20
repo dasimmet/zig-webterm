@@ -1,47 +1,64 @@
 const std = @import("std");
-const Server = std.http.Server;
-const Handler = @import("handler.zig");
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-var allocator = gpa.allocator();
+const zap = @import("zap");
+const fio = @import("fio.zig");
+const Endpoint = @import("server_endpoint.zig");
 
-const max_header_size = 8192;
-const ip = "0.0.0.0";
+fn on_request(r: zap.SimpleRequest) void {
+    if (r.path == null) {
+        return r.sendBody("<html><body><h1>500 - Header Error</h1></body></html>") catch return;
+    }
+    const path = r.path.?;
+    if (std.mem.eql(u8, path, "/client.wasm")) {
+        r.setHeader("content-type", "application/wasm") catch return;
+        r.sendBody(@embedFile("client.wasm")) catch return;
+    } else {
+        r.setHeader("content-type", "text/html") catch {
+            r.setStatus(.internal_server_error);
+            r.sendBody("<html><body><h1>500 - Header Error</h1></body></html>") catch return;
+        };
+    }
+    if (std.mem.eql(u8, path, "/index.html")) {
+        r.setStatus(.found);
+        return static_site(r);
+    }
+    if (std.mem.eql(u8, r.path.?, "/")) {
+        r.setStatus(.found);
+        return static_site(r);
+    }
+    r.setStatus(.not_found);
+}
 
 pub fn main() !void {
-    var srv = Server.init(allocator, .{ .reuse_address = true });
-    defer srv.deinit();
-    
-    try srv.listen(try std.net.Address.parseIp(ip, 0));
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .thread_safe = true,
+    }){};
+    var allocator = gpa.allocator();
+    const wasm_ext = "wasm";
+    fio.http_mimetype_register(@constCast(wasm_ext.ptr), wasm_ext.len, 1);
 
-    const port = srv.socket.listen_address.getPort();
-    var url = try std.fmt.allocPrint(allocator, "http://{s}:{}", .{ip,port});
-    defer allocator.free(url);
-    std.debug.print("Listening on: {s}\n", .{url});
+    var listener = zap.SimpleEndpointListener.init(allocator, .{
+        .port = 3000,
+        .on_request = on_request,
+        .max_clients = 100000,
+        // .public_folder = "zig-out",
+        .log = true,
+    });
 
-    var handle_new_requests = true;
+    // var endpoint = Endpoint.init(allocator, "/client.wasm");
+    // defer endpoint.deinit();
+    // try listener.addEndpoint(&endpoint.endpoint);
 
-    // _ = try std.ChildProcess.exec(.{
-    //     .allocator=allocator,
-    //     .argv=&[_][]const u8{"xdg-open",url},
-    // });
+    try listener.listen();
 
-    var handle = Handler{.allocator=allocator};
+    std.debug.print("\nOpen http://127.0.0.1:3000 in your browser\n", .{});
 
-    outer: while (handle_new_requests) {
-         var res = try srv.accept(.{
-            .allocator = allocator,
-            .header_strategy = .{ .dynamic = max_header_size },
-        });
-        defer res.deinit();
+    // start worker threads
+    zap.start(.{
+        .threads = 4,
+        .workers = 2,
+    });
+}
 
-        while (res.reset() != .closing) {
-            res.wait() catch |err| switch (err) {
-                error.HttpHeadersInvalid => continue :outer,
-                error.EndOfStream => continue,
-                else => return err,
-            };
-
-            try handle.handleRequest(&res);
-        }
-    }
+fn static_site(r: zap.SimpleRequest) void {
+    r.sendBody(@embedFile("index.html")) catch return;
 }

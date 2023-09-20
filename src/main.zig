@@ -18,3 +18,7 @@ fn set_title_() !void {
 fn alert_() !void {
     try js.global.call(void, "alert", .{js.string("Hello, world!")});
 }
+
+pub fn main() void {
+
+}

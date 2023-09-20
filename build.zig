@@ -14,27 +14,33 @@ pub fn build(b: *std.Build) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
-    
+
     const vendor = b.option(bool, "vendor", "") orelse false;
 
     const zigjs = if (vendor)
         b.anonymousDependency("libs/zig-js", @import("libs/zig-js/build.zig"), .{})
-    else b.dependency("zigjs", .{});
+    else
+        b.dependency("zigjs", .{});
 
-    const lib = b.addSharedLibrary(.{
+    const zap = b.dependency("zap", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const client = b.addSharedLibrary(.{
         .name = "client",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
         .root_source_file = .{ .path = "src/main.zig" },
         .target = .{
-            .os_tag = .wasi,
+            .os_tag = .freestanding,
             .cpu_arch = .wasm32,
         },
         .optimize = optimize,
     });
-    lib.rdynamic = true;
-    lib.addModule("zig-js", zigjs.module("zig-js"));
-    b.installArtifact(lib);
+    client.rdynamic = true;
+    client.addModule("zig-js", zigjs.module("zig-js"));
+    const install_client = b.addInstallArtifact(client, .{});
 
     const server = b.addExecutable(.{
         .name = "server",
@@ -42,7 +48,23 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    b.step("run", "run the server").dependOn(&b.addRunArtifact(server).step);
+    server.addModule("zap", zap.module("zap"));
+    server.linkLibrary(zap.artifact("facil.io"));
+
+    const install_server = b.addInstallArtifact(server, .{});
+    const update_client = b.addInstallFile(client.getEmittedBin(), "../src/client.wasm");
+
+
+    var run_server = b.step("run", "run the server");
+    run_server.dependOn(&b.addRunArtifact(server).step);
+
+    var run_update = b.step("run-update", "run the server with new wasm");
+    run_update.dependOn(&update_client.step);
+    run_update.dependOn(run_server);
+    var install = b.getInstallStep();
+    install.dependOn(&install_client.step);
+    install.dependOn(&install_server.step);
+    install.dependOn(run_server);
 
     // Creates a step for unit testing.
     const main_tests = b.addTest(.{
@@ -57,3 +79,54 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&main_tests.step);
 }
+
+const EmbedExeStep = struct {
+    content: std.Build.LazyPath,
+    compile_step: *std.Build.Step.Compile,
+    step: std.Build.Step,
+
+    pub fn create(b: *std.Build, it: *std.Build.Step.Compile) *@This() {
+        var readStep = std.Build.Step.init(.{
+            .id = .custom,
+            .name = "",
+            .owner = b,
+            .makeFn = make,
+        });
+        // readStep.dependOn(&it.step);
+        var self = b.allocator.create(@This()) catch @panic("OOM");
+        self.* = .{
+            .step = readStep,
+            .compile_step = it,
+            .content = .{ .generated = &.{
+                .step = &self.*.step,
+            } },
+        };
+
+        return self;
+    }
+
+    pub fn make(step: *std.Build.Step, prog_node: *std.Progress.Node) !void {
+        _ = prog_node;
+        const self = @fieldParentPtr(
+            @This(),
+            "step",
+            step,
+        );
+        const b = self.step.owner;
+        _ = b;
+
+
+        // const fs = std.fs.cwd();
+        // fs.copyFile(self.compile_step.getEmittedBin(), std.path,.{});
+        
+        self.content.path = try std.fs.cwd().readFileAlloc(
+            step.owner.allocator,
+            self.compile_step.getEmittedBin().getPath(step.owner),
+            1048576,
+        );
+    }
+
+    pub fn deinit(self: @This()) void {
+        self.path.deinit();
+    }
+};

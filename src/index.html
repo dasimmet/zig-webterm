@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<head>
+    <script>
+var client = fetch("/client.wasm");
+const importObject = {};
+
+/*
+const request = new XMLHttpRequest();
+request.open("GET", "zig-out/lib/client.wasm");
+request.responseType = "arraybuffer";
+request.send();
+
+request.onload = () => {
+  const bytes = request.response;
+  WebAssembly.instantiate(bytes, importObject).then((results) => {
+    results.instance.exports.exported_func();
+  });
+};
+*/
+WebAssembly.instantiateStreaming(client, importObject).then(
+  (results) => {
+    // Do something with the results!
+    console.log(results);
+  },
+)
+.catch(error=>{
+  console.log('there was some error; ', error)
+});
+    </script>
+</head>
+<body>Wololo</body>
