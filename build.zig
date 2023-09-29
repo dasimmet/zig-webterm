@@ -15,17 +15,53 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const vendor = b.option(bool, "vendor", "") orelse false;
+    const vendor = b.option(
+        bool,
+        "vendor",
+        "use git submodule for dependencies",
+    ) orelse false;
+    const no_update_client = b.option(
+        bool,
+        "no-update-client",
+        "",
+    ) orelse false;
 
-    const zigjs = if (vendor)
-        b.anonymousDependency("libs/zig-js", @import("libs/zig-js/build.zig"), .{})
-    else
-        b.dependency("zigjs", .{});
+    const zigjs = VendorDependency.init(
+        b,
+        vendor,
+        "zigjs",
+        "libs/zig-js",
+        @import("libs/zig-js/build.zig"),
+        .{
+            .target = target,
+            .optimize = optimize,
+        },
+    );
+    //  if (vendor)
+    //     b.anonymousDependency("libs/zig-js", , .{})
+    // else
+    //     b.dependency("zigjs", .{});
 
-    const zap = b.dependency("zap", .{
-        .target = target,
-        .optimize = optimize,
-    });
+    const zap_dep = std.build.Dependency{
+        .builder = b,
+    };
+    _ = zap_dep;
+    const zap = VendorDependency.init(
+        b,
+        false,
+        // vendor, TODO: fix missing dependency issue on facil.io
+        "zap",
+        "libs/zap",
+        @import("libs/zap/build.zig"),
+        .{
+            .target = target,
+            .optimize = optimize,
+        },
+    );
+    //  b.dependency("zap", .{
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
 
     const client = b.addSharedLibrary(.{
         .name = "client",
@@ -56,13 +92,14 @@ pub fn build(b: *std.Build) void {
     update.dependOn(&update_client.step);
 
     var run_server = b.step("run", "run the server");
-    run_server.dependOn(update);
+    if (!no_update_client) run_server.dependOn(update);
     run_server.dependOn(&b.addRunArtifact(server).step);
 
     var install = b.getInstallStep();
+    if (!no_update_client) install.dependOn(update);
     install.dependOn(&install_client.step);
     install.dependOn(&install_server.step);
-    install.dependOn(run_server);
+    // install.dependOn(run_server);
 
     // Creates a step for unit testing.
     const main_tests = b.addTest(.{
@@ -113,10 +150,9 @@ const EmbedExeStep = struct {
         const b = self.step.owner;
         _ = b;
 
-
         // const fs = std.fs.cwd();
         // fs.copyFile(self.compile_step.getEmittedBin(), std.path,.{});
-        
+
         self.content.path = try std.fs.cwd().readFileAlloc(
             step.owner.allocator,
             self.compile_step.getEmittedBin().getPath(step.owner),
@@ -126,5 +162,22 @@ const EmbedExeStep = struct {
 
     pub fn deinit(self: @This()) void {
         self.path.deinit();
+    }
+};
+
+const VendorDependency = struct {
+    const Self = @This();
+    pub fn init(
+        b: *std.Build,
+        vendor: bool,
+        name: []const u8,
+        relative_build_root: []const u8,
+        comptime build_zig: type,
+        args: anytype,
+    ) *std.Build.Dependency {
+        return if (vendor)
+            b.anonymousDependency(relative_build_root, build_zig, args)
+        else
+            b.dependency(name, args);
     }
 };
