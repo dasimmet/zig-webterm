@@ -86,7 +86,8 @@ pub fn build(b: *std.Build) void {
     server.linkLibrary(zap.artifact("facil.io"));
 
     const install_server = b.addInstallArtifact(server, .{});
-    const update_client = b.addInstallFile(client.getEmittedBin(), "../src/client.wasm");
+    const update_client = b.addWriteFiles();
+    update_client.addCopyFileToSource(client.getEmittedBin(), "src/client.wasm");
 
     var update = b.step("update", "update client.wasm");
     update.dependOn(&update_client.step);
