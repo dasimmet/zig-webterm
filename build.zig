@@ -29,9 +29,7 @@ pub fn build(b: *std.Build) void {
 
     const client = b.addSharedLibrary(.{
         .name = "client",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = .{ .path = "src/client.zig" },
         .target = .{
             .os_tag = .freestanding,
             .cpu_arch = .wasm32,
@@ -54,13 +52,13 @@ pub fn build(b: *std.Build) void {
     const install_server = b.addInstallArtifact(server, .{});
     const update_client = b.addInstallFile(client.getEmittedBin(), "../src/client.wasm");
 
+    var update = b.step("update", "update client.wasm");
+    update.dependOn(&update_client.step);
 
     var run_server = b.step("run", "run the server");
+    run_server.dependOn(update);
     run_server.dependOn(&b.addRunArtifact(server).step);
 
-    var run_update = b.step("run-update", "run the server with new wasm");
-    run_update.dependOn(&update_client.step);
-    run_update.dependOn(run_server);
     var install = b.getInstallStep();
     install.dependOn(&install_client.step);
     install.dependOn(&install_server.step);

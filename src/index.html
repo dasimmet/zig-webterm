@@ -2,25 +2,22 @@
 <head>
     <script>
 var client = fetch("/client.wasm");
-const importObject = {};
 
-/*
-const request = new XMLHttpRequest();
-request.open("GET", "zig-out/lib/client.wasm");
-request.responseType = "arraybuffer";
-request.send();
-
-request.onload = () => {
-  const bytes = request.response;
-  WebAssembly.instantiate(bytes, importObject).then((results) => {
-    results.instance.exports.exported_func();
-  });
+var memory = undefined;
+var importObject = {
+  "eval": function (script_ptr, script_len) {
+    console.log(memory);
+    const memv = new Uint8Array(mem.buffer, script_ptr, script_len);
+    console.log(memv);
+    const res = eval(memv);
+  },
+  "env": {},
 };
-*/
-WebAssembly.instantiateStreaming(client, importObject).then(
-  (results) => {
-    // Do something with the results!
-    console.log(results);
+
+WebAssembly.instantiateStreaming(client, importObject)
+  .then(({instance}) => {
+    memory = instance.memory;
+    console.log(instance);
   },
 )
 .catch(error=>{
