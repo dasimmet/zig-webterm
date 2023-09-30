@@ -11,19 +11,17 @@ fn on_request(r: zap.SimpleRequest) void {
     if (std.mem.eql(u8, path, "/client.wasm")) {
         r.setHeader("content-type", "application/wasm") catch return;
         r.sendBody(@embedFile("client.wasm")) catch return;
-    } else {
-        r.setHeader("content-type", "text/html") catch {
+        return;
+    }
+    if (static_map.has(path)) {
+        const res = static_map.get(path).?;
+
+        r.setHeader("content-type", res.content_type) catch { 
             r.setStatus(.internal_server_error);
             r.sendBody("<html><body><h1>500 - Header Error</h1></body></html>") catch return;
         };
-    }
-    if (std.mem.eql(u8, path, "/index.html")) {
-        r.setStatus(.found);
-        return static_site(r);
-    }
-    if (std.mem.eql(u8, r.path.?, "/")) {
-        r.setStatus(.found);
-        return static_site(r);
+        r.sendBody(res.body) catch return;
+        return;
     }
     r.setStatus(.not_found);
 }
@@ -59,6 +57,24 @@ pub fn main() !void {
     });
 }
 
-fn static_site(r: zap.SimpleRequest) void {
-    r.sendBody(@embedFile("index.html")) catch return;
-}
+const StaticResponse = struct {
+    content_type: []const u8 = "text/html",
+    body: []const u8,
+};
+
+const static_map = std.ComptimeStringMap(StaticResponse, [_]struct { []const u8, StaticResponse }{
+    .{ "/", .{ .body = @embedFile("index.html") } },
+    .{ "/index.html", .{ .body = @embedFile("index.html") } },
+    .{ "/index.js", .{
+        .body = @embedFile("index.js"),
+        .content_type = "text/javascript",
+    } },
+    .{ "/xterm.min.js", .{
+        .body = @embedFile("xterm.min.js"),
+        .content_type = "text/javascript",
+    } },
+    .{ "/xterm.min.css", .{
+        .body = @embedFile("xterm.min.css"),
+        .content_type = "text/css",
+    } },
+});
