@@ -2,28 +2,31 @@ const std = @import("std");
 const zap = @import("zap");
 const fio = @import("fio.zig");
 const Endpoint = @import("server_endpoint.zig");
+const assets = @import("assets.zig");
 
 fn on_request(r: zap.SimpleRequest) void {
     if (r.path == null) {
-        return r.sendBody("<html><body><h1>500 - Header Error</h1></body></html>") catch return;
+        return server_error(r, "500 - Header Error");
     }
     const path = r.path.?;
     if (std.mem.eql(u8, path, "/client.wasm")) {
-        r.setHeader("content-type", "application/wasm") catch return;
-        r.sendBody(@embedFile("client.wasm")) catch return;
+        r.setHeader("content-type", "application/wasm") catch 
+            server_error(r, "500 - Set Content-Type Error");
+        r.sendBody(@embedFile("client.wasm")) catch 
+            server_error(r, "500 - Sending Body Error");
         return;
     }
-    if (static_map.has(path)) {
-        const res = static_map.get(path).?;
+    if (assets.map.has(path)) {
+        const res = assets.map.get(path).?;
 
-        r.setHeader("content-type", res.content_type) catch { 
-            r.setStatus(.internal_server_error);
-            r.sendBody("<html><body><h1>500 - Header Error</h1></body></html>") catch return;
-        };
-        r.sendBody(res.body) catch return;
+        r.setHeader("Content-Type", res.content_type) catch
+            server_error(r, "500 - Set Content-Type Error");
+        r.sendBody(res.body) catch
+            server_error(r, "500 - Sending Body Error");
         return;
     }
     r.setStatus(.not_found);
+    r.sendBody("<html><body><h1>404 - Not Found</h1></body></html>") catch return;
 }
 
 pub fn main() !void {
@@ -57,24 +60,9 @@ pub fn main() !void {
     });
 }
 
-const StaticResponse = struct {
-    content_type: []const u8 = "text/html",
-    body: []const u8,
-};
-
-const static_map = std.ComptimeStringMap(StaticResponse, [_]struct { []const u8, StaticResponse }{
-    .{ "/", .{ .body = @embedFile("index.html") } },
-    .{ "/index.html", .{ .body = @embedFile("index.html") } },
-    .{ "/index.js", .{
-        .body = @embedFile("index.js"),
-        .content_type = "text/javascript",
-    } },
-    .{ "/xterm.min.js", .{
-        .body = @embedFile("xterm.min.js"),
-        .content_type = "text/javascript",
-    } },
-    .{ "/xterm.min.css", .{
-        .body = @embedFile("xterm.min.css"),
-        .content_type = "text/css",
-    } },
-});
+pub fn server_error(r: zap.SimpleRequest, msg: []const u8) void {
+    r.setStatus(.internal_server_error);
+    r.sendBody("<html><body><h1>") catch return;
+    r.sendBody(msg) catch return;
+    r.sendBody("</h1></body></html>") catch return;
+}

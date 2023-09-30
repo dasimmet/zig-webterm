@@ -77,7 +77,7 @@ pub fn build(b: *std.Build) void {
     const install_client = b.addInstallArtifact(client, .{});
 
     const server = b.addExecutable(.{
-        .name = "server",
+        .name = "zigtty",
         .root_source_file = .{ .path = "src/server.zig" },
         .target = target,
         .optimize = optimize,
