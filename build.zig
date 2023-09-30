@@ -87,7 +87,7 @@ pub fn build(b: *std.Build) void {
 
     const install_server = b.addInstallArtifact(server, .{});
     const update_client = b.addWriteFiles();
-    update_client.addCopyFileToSource(client.getEmittedBin(), "src/client.wasm");
+    update_client.addCopyFileToSource(client.getEmittedBin(), "src/assets/client.wasm");
 
     var update = b.step("update", "update client.wasm");
     update.dependOn(&update_client.step);

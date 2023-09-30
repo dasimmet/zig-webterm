@@ -9,13 +9,6 @@ fn on_request(r: zap.SimpleRequest) void {
         return server_error(r, "500 - Header Error");
     }
     const path = r.path.?;
-    if (std.mem.eql(u8, path, "/client.wasm")) {
-        r.setHeader("content-type", "application/wasm") catch 
-            server_error(r, "500 - Set Content-Type Error");
-        r.sendBody(@embedFile("client.wasm")) catch 
-            server_error(r, "500 - Sending Body Error");
-        return;
-    }
     if (assets.map.has(path)) {
         const res = assets.map.get(path).?;
 
