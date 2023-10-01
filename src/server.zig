@@ -11,6 +11,8 @@ pub fn main() !void {
     }){};
     var allocator = gpa.allocator();
 
+    Websocket.GlobalContextManager = Websocket.ContextManager.init(allocator, "WUFF", "derp_");
+
     var listener = zap.SimpleEndpointListener.init(allocator, .{
         .port = 3000,
         .on_upgrade = Websocket.on_upgrade,

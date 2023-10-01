@@ -13,7 +13,7 @@ const Context = struct {
 
 const ContextList = std.ArrayList(*Context);
 
-const ContextManager = struct {
+pub const ContextManager = struct {
     allocator: std.mem.Allocator,
     channel: []const u8,
     usernamePrefix: []const u8,
@@ -184,6 +184,6 @@ pub fn on_upgrade(r: zap.SimpleRequest, target_protocol: []const u8) void {
 }
 
 // global variables, yeah!
-var GlobalContextManager: ContextManager = undefined;
+pub var GlobalContextManager: ContextManager = undefined;
 
 const WebsocketHandler = WebSockets.Handler(Context);

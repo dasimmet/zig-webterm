@@ -29,7 +29,6 @@ export fn main() void {
 }
 
 const script =
-    \\let canvas = document.getElementById("canvas");
     \\let msg = "Hello World from zig-js ";
     \\
     \\function deref(ptr, len){
@@ -38,6 +37,12 @@ const script =
     \\}
     \\
     \\console.log(msg);
+    \\document.title = msg;
+    \\
+    \\6969
+;
+
+const _ =
     \\const ctx = canvas.getContext("2d");
     \\ctx.font = "100px serif";
     \\ctx.textAlign = "center";
@@ -57,6 +62,4 @@ const script =
     \\canvas.width = window.innerWidth;
     \\canvas.height = window.innerHeight;
     \\animate();
-    \\
-    \\6969
 ;
