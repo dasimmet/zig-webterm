@@ -2,7 +2,7 @@ const js = @import("zig-js");
 const std = @import("std");
 
 extern fn eval(ptr : usize, len: usize) u32;
-extern fn log_wasm(ptr : usize, len: usize) void;
+extern fn log_wasm(level: usize, ptr : usize, len: usize) void;
 
 export fn tick(frame: u32, time: f32) void {
     _ = time;
@@ -14,18 +14,33 @@ export fn resize(width: u32, height: u32) void {
     _ = width;
 }
 
-var logBuf:[9999]u8 = undefined;
+var logBuf:[256]u8 = undefined;
+
+pub const std_options = struct {
+    pub fn logFn(
+        comptime message_level: std.log.Level,
+        comptime scope: @Type(.EnumLiteral),
+        comptime format: []const u8,
+        args: anytype,
+    ) void {
+        _ = scope;
+
+        const str = std.fmt.bufPrint(&logBuf, format, args) catch unreachable;
+        log_wasm(@intFromEnum(message_level), @intFromPtr(str.ptr), str.len);
+    }
+};
 
 fn do_log(comptime fmt: []const u8, args: anytype) void {
-    const str = std.fmt.bufPrint(&logBuf, fmt, args) catch unreachable;
-    log_wasm(@intFromPtr(str.ptr), str.len);
+    std.log.info(fmt, args);
 }
 
 export fn main() void {
-    do_log("WOLOLO", .{});
-    do_log("WOLOLO", .{});
+    std.log.debug("DEBUG", .{});
+    std.log.info("INFO", .{});
+    std.log.warn("WARN", .{});
+    std.log.err("ERR", .{});
     const res = eval(@intFromPtr(script.ptr), @as(usize, script.len));
-    do_log("WARNING: This int is the result of the last eval statement: {}", .{res});
+    std.log.info("This int is the result of the last eval statement: {}", .{res});
 }
 
 const script =
@@ -39,7 +54,7 @@ const script =
     \\console.log(msg);
     \\document.title = msg;
     \\
-    \\6969
+    \\42
 ;
 
 const _ =

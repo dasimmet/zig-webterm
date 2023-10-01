@@ -5,6 +5,7 @@ const WebSockets = zap.WebSockets;
 const Context = struct {
     userName: []const u8,
     channel: []const u8,
+    process: std.ChildProcess = undefined,
     // we need to hold on to them and just re-use them for every incoming
     // connection
     subscribeArgs: WebsocketHandler.SubscribeArgs,
@@ -52,6 +53,10 @@ pub const ContextManager = struct {
             "{s}{d}",
             .{ self.usernamePrefix, self.contexts.items.len },
         );
+        var proc = std.ChildProcess.init(
+            &[_][]const u8{ "bash", "-c", "echo SUBTEST" },
+            self.allocator,
+        );
         ctx.* = .{
             .userName = userName,
             .channel = self.channel,
@@ -61,6 +66,7 @@ pub const ContextManager = struct {
                 .force_text = true,
                 .context = ctx,
             },
+            .process = proc,
             // used in upgrade()
             .settings = .{
                 .on_open = on_open_websocket,
@@ -69,6 +75,7 @@ pub const ContextManager = struct {
                 .context = ctx,
             },
         };
+        try proc.spawn();
         try self.contexts.append(ctx);
         return ctx;
     }
@@ -83,14 +90,13 @@ fn on_open_websocket(context: ?*Context, handle: WebSockets.WsHandle) void {
             std.log.err("Error opening websocket: {any}", .{err});
             return;
         };
-
         // say hello
-        var buf: [128]u8 = undefined;
+        var buf: [2048]u8 = undefined;
         const message = std.fmt.bufPrint(
             &buf,
-            "{s} joined the chat.",
-            .{ctx.userName},
-        ) catch unreachable;
+            "{s} joined the chat with args {any}\r\n",
+            .{ctx.userName, ctx.subscribeArgs},
+        ) catch @panic("bufPrint error");
 
         // send notification to all others
         WebsocketHandler.publish(.{ .channel = ctx.channel, .message = message });
@@ -101,11 +107,13 @@ fn on_open_websocket(context: ?*Context, handle: WebSockets.WsHandle) void {
 fn on_close_websocket(context: ?*Context, uuid: isize) void {
     _ = uuid;
     if (context) |ctx| {
+        // const res = ctx.process.wait() catch unreachable;
+
         // say goodbye
         var buf: [128]u8 = undefined;
         const message = std.fmt.bufPrint(
             &buf,
-            "{s} left the chat.",
+            "{s} left the chat.\r\n",
             .{ctx.userName},
         ) catch unreachable;
 
@@ -127,7 +135,7 @@ fn handle_websocket_message(
         const buflen = 128; // arbitrary len
         var buf: [buflen]u8 = undefined;
 
-        const format_string = "{s}: {s}";
+        const format_string = "{s}: {s}\r\n";
         const fmt_string_extra_len = 2; // ": " between the two strings
         //
         const max_msg_len = buflen - ctx.userName.len - fmt_string_extra_len;
