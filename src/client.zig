@@ -1,8 +1,8 @@
 const js = @import("zig-js");
 const std = @import("std");
 
-extern fn eval(ptr : usize, len: usize) u32;
-extern fn log_wasm(level: usize, ptr : usize, len: usize) void;
+extern "imports" fn eval(ptr : usize, len: usize) u32;
+extern "imports" fn log_wasm(level: usize, ptr : usize, len: usize) void;
 
 export fn tick(frame: u32, time: f32) void {
     _ = time;
@@ -16,6 +16,11 @@ export fn resize(width: u32, height: u32) void {
 
 var logBuf:[256]u8 = undefined;
 
+pub fn panic(msg: []const u8,trace: ?*std.builtin.StackTrace, code: ?usize) noreturn {
+    _ = code;
+    std.log.err("Panic: {s}\nTrace:\n{any}\n", .{msg, trace});
+    while(true) {}
+}
 pub const std_options = struct {
     pub fn logFn(
         comptime message_level: std.log.Level,
@@ -25,7 +30,7 @@ pub const std_options = struct {
     ) void {
         _ = scope;
 
-        const str = std.fmt.bufPrint(&logBuf, format, args) catch unreachable;
+        const str = std.fmt.bufPrint(&logBuf, format, args) catch @panic("Log Buffer Overflow");
         log_wasm(@intFromEnum(message_level), @intFromPtr(str.ptr), str.len);
     }
 };
@@ -39,6 +44,7 @@ export fn main() void {
     std.log.info("INFO", .{});
     std.log.warn("WARN", .{});
     std.log.err("ERR", .{});
+    // std.log.info("{s}{s}", .{script,canvas_script});
     const res = eval(@intFromPtr(script.ptr), @as(usize, script.len));
     std.log.info("This int is the result of the last eval statement: {}", .{res});
 }
@@ -57,7 +63,7 @@ const script =
     \\42
 ;
 
-const _ =
+const canvas_script =
     \\const ctx = canvas.getContext("2d");
     \\ctx.font = "100px serif";
     \\ctx.textAlign = "center";

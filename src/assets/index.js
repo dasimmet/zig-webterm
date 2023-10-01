@@ -3,7 +3,7 @@ var client = fetch("/client.wasm");
 let term_div = document.getElementById('terminal');
 let instance = undefined;
 var importObject = {
-  env: {
+  imports: {
     eval: function (script_ptr, script_len) {
       const memory = instance.exports.memory;
       const memv = new Uint8Array(memory.buffer, script_ptr, script_len);
@@ -32,7 +32,7 @@ var importObject = {
           log_fn = console.log;
           break;
       }
-      log_fn(level,":",string);
+      log_fn(string);
     }
   },
 };
@@ -47,12 +47,8 @@ WebAssembly.instantiateStreaming(client, importObject)
   console.log('there was some error; ', error)
 });
 window.addEventListener("resize", (ev)=>{
-    // term_div.width = window.innerWidth;
-    // term_div.height = window.innerHeight;
     instance.exports.resize(window.innerWidth, window.innerHeight);
 });
-// term_div.style.width = window.innerWidth + "px";
-// term_div.style.height = window.innerHeight + "px";
 
 var term = new Terminal();
 term.open(term_div);
