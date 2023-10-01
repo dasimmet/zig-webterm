@@ -1,25 +1,32 @@
 const js = @import("zig-js");
 const std = @import("std");
 
-// export fn set_title() void {
-//     set_title_() catch unreachable;
-// }
-
-// export fn alert() void {
-//     alert_() catch unreachable;
-// }
-
-// fn set_title_() !void {
-//     const doc = try js.global.get(js.Object, "document");
-//     defer doc.deinit();
-
-//     try doc.set("title", js.string("Hello!"));
-// }
-
-// fn alert_() !void {
-//     try js.global.call(void, "alert", .{js.string("Hello, world!")});
-// }
 extern fn eval(ptr : usize, len: usize) u32;
+extern fn log_wasm(ptr : usize, len: usize) void;
+
+export fn tick(frame: u32, time: f32) void {
+    _ = time;
+    _ = frame;
+}
+
+export fn resize(width: u32, height: u32) void {
+    _ = height;
+    _ = width;
+}
+
+var logBuf:[9999]u8 = undefined;
+
+fn do_log(comptime fmt: []const u8, args: anytype) void {
+    const str = std.fmt.bufPrint(&logBuf, fmt, args) catch unreachable;
+    log_wasm(@intFromPtr(str.ptr), str.len);
+}
+
+export fn main() void {
+    do_log("WOLOLO", .{});
+    do_log("WOLOLO", .{});
+    const res = eval(@intFromPtr(script.ptr), @as(usize, script.len));
+    do_log("WARNING: This int is the result of the last eval statement: {}", .{res});
+}
 
 const script =
     \\let canvas = document.getElementById("canvas");
@@ -53,18 +60,3 @@ const script =
     \\
     \\6969
 ;
-
-export fn tick(frame: u32, time: f32) void {
-    _ = time;
-    _ = frame;
-}
-
-export fn resize(width: u32, height: u32) void {
-    _ = height;
-    _ = width;
-}
-
-export fn main() void {
-    const res = eval(@intFromPtr(script.ptr), @as(usize, script.len));
-    std.log.warn("WARNING: {}", .{res});
-}

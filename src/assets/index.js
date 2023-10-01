@@ -9,6 +9,12 @@ var importObject = {
       var string = new TextDecoder().decode(memv);
       return eval(string);
     },
+    log_wasm: function (script_ptr, script_len) {
+      const memory = instance.exports.memory;
+      const memv = new Uint8Array(memory.buffer, script_ptr, script_len);
+      var string = new TextDecoder().decode(memv);
+      console.log(string);
+    }
   },
 };
 

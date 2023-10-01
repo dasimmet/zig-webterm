@@ -58,12 +58,8 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         },
     );
-    //  b.dependency("zap", .{
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
 
-    const client = b.addSharedLibrary(.{
+    const client_exe = b.addSharedLibrary(.{
         .name = "client",
         .root_source_file = .{ .path = "src/client.zig" },
         .target = .{
@@ -72,9 +68,9 @@ pub fn build(b: *std.Build) void {
         },
         .optimize = optimize,
     });
-    client.rdynamic = true;
-    client.addModule("zig-js", zigjs.module("zig-js"));
-    const install_client = b.addInstallArtifact(client, .{});
+    client_exe.rdynamic = true;
+    client_exe.addModule("zig-js", zigjs.module("zig-js"));
+    const install_client = b.addInstallArtifact(client_exe, .{});
 
     const server = b.addExecutable(.{
         .name = "zigtty",
@@ -87,17 +83,17 @@ pub fn build(b: *std.Build) void {
 
     const install_server = b.addInstallArtifact(server, .{});
     const update_client = b.addWriteFiles();
-    update_client.addCopyFileToSource(client.getEmittedBin(), "src/assets/client.wasm");
+    update_client.addCopyFileToSource(client_exe.getEmittedBin(), "src/assets/client.wasm");
 
-    var update = b.step("update", "update client.wasm");
-    update.dependOn(&update_client.step);
+    var client = b.step("client", "update client.wasm");
+    client.dependOn(&update_client.step);
 
     var run_server = b.step("run", "run the server");
-    if (!no_update_client) run_server.dependOn(update);
+    if (!no_update_client) server.step.dependOn(client);
     run_server.dependOn(&b.addRunArtifact(server).step);
 
     var install = b.getInstallStep();
-    if (!no_update_client) install.dependOn(update);
+    if (!no_update_client) install.dependOn(client);
     install.dependOn(&install_client.step);
     install.dependOn(&install_server.step);
     // install.dependOn(run_server);
