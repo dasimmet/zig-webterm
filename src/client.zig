@@ -1,4 +1,5 @@
 const js = @import("zig-js");
+const std = @import("std");
 
 // export fn set_title() void {
 //     set_title_() catch unreachable;
@@ -18,7 +19,7 @@ const js = @import("zig-js");
 // fn alert_() !void {
 //     try js.global.call(void, "alert", .{js.string("Hello, world!")});
 // }
-extern fn eval(ptr : usize, len: usize) void;
+extern fn eval(ptr : usize, len: usize) u32;
 
 const script =
     \\let canvas = document.getElementById("canvas");
@@ -49,6 +50,8 @@ const script =
     \\canvas.width = window.innerWidth;
     \\canvas.height = window.innerHeight;
     \\animate();
+    \\
+    \\6969
 ;
 
 export fn tick(frame: u32, time: f32) void {
@@ -62,5 +65,6 @@ export fn resize(width: u32, height: u32) void {
 }
 
 export fn main() void {
-    eval(@intFromPtr(script.ptr), @as(usize, script.len));
+    const res = eval(@intFromPtr(script.ptr), @as(usize, script.len));
+    std.log.warn("WARNING: {}", .{res});
 }

@@ -7,7 +7,7 @@ var importObject = {
       const memory = instance.exports.memory;
       const memv = new Uint8Array(memory.buffer, script_ptr, script_len);
       var string = new TextDecoder().decode(memv);
-      eval(string);
+      return eval(string);
     },
   },
 };
