@@ -3,6 +3,7 @@ const std = @import("std");
 
 extern "imports" fn eval(ptr : usize, len: usize) u32;
 extern "imports" fn log_wasm(level: usize, ptr : usize, len: usize) void;
+extern "imports" fn panic_wasm() noreturn;
 
 export fn tick(frame: u32, time: f32) void {
     _ = time;
@@ -19,7 +20,7 @@ var logBuf:[256]u8 = undefined;
 pub fn panic(msg: []const u8,trace: ?*std.builtin.StackTrace, code: ?usize) noreturn {
     _ = code;
     std.log.err("Panic: {s}\nTrace:\n{any}\n", .{msg, trace});
-    while(true) {}
+    panic_wasm();
 }
 pub const std_options = struct {
     pub fn logFn(

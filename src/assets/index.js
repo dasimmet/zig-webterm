@@ -10,6 +10,9 @@ var importObject = {
       var string = new TextDecoder().decode(memv);
       return eval(string);
     },
+    panic_wasm: function () {
+      throw new WebAssembly.RuntimeError();
+    },
     log_wasm: function (level, script_ptr, script_len) {
       const memory = instance.exports.memory;
       const memv = new Uint8Array(memory.buffer, script_ptr, script_len);
