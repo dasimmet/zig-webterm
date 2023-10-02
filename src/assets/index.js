@@ -78,13 +78,14 @@ term.onResize(function (evt) {
 });
 
 
+ws.onopen = function(e) { 
+  console.log("OPEN:", e);
+};
 ws.onmessage = function(e) { 
   console.log("MESSAGE:", e);
 };
 ws.onclose = function(e) { 
   console.log("CLOSE:", e);
-};
-
-ws.onopen = function(e) { 
-    console.log("OPEN:", e);
+  let closed_div = document.getElementById('close');
+  closed_div.style.display = "unset";
 };

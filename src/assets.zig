@@ -10,6 +10,7 @@ pub inline fn embedAsset(p: []const u8) []const u8 {
     return @embedFile(assets_path++p);
 }
 
+// a map of path on the server to the embedded response
 pub const map = std.ComptimeStringMap(StaticResponse, [_]struct { []const u8, StaticResponse }{
     .{ "/", .{ .body = embedAsset("index.html") } },
     .{ "/index.html", .{ .body = embedAsset("index.html") } },
