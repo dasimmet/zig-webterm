@@ -4,14 +4,25 @@ const zap = @import("zap");
 const Request = @import("Request.zig");
 const Websocket = @import("Websocket.zig");
 
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{
         .thread_safe = true,
     }){};
     var allocator = gpa.allocator();
 
-    Websocket.GlobalContextManager = Websocket.ContextManager.init(allocator, "WUFF", "derp_");
+    const argv = try std.process.argsAlloc(allocator);
+    defer allocator.free(argv);
+
+    for (argv) |a| {
+        std.log.warn("argv: {s}", .{a});
+    }
+
+    Websocket.GlobalContextManager = Websocket.ContextManager.init(
+        argv[1..],
+        allocator,
+        "WUFF",
+        "derp_",
+    );
 
     var listener = zap.SimpleEndpointListener.init(allocator, .{
         .port = 3000,

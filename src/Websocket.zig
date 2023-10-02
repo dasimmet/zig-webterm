@@ -2,7 +2,13 @@ const std = @import("std");
 const zap = @import("zap");
 const WebSockets = zap.WebSockets;
 
+// global variables, yeah!
+pub var GlobalContextManager: ContextManager = undefined;
+const WebsocketHandler = WebSockets.Handler(Context);
+
 const Context = struct {
+    manager: *ContextManager,
+    connected: bool = true,
     userName: []const u8,
     channel: []const u8,
     process: std.ChildProcess = undefined,
@@ -25,25 +31,29 @@ pub fn runProcess(self: *Context, allocator: std.mem.Allocator) !void {
     });
     defer poller.deinit();
 
+    var buf: [4096]u8 = undefined;
     while (try poller.poll()) {
         if (poller.fifo(.stdout).count > 0){
             const fifo = poller.fifo(.stdout);
-            const message = try fifo.reader().readAllAlloc(allocator, fifo.count);
-            defer allocator.free(message);
+            const msg_len = try fifo.reader().read(&buf);
+            const message = buf[0..msg_len];
             WebsocketHandler.publish(.{ .channel = self.channel, .message = message });
-            std.log.info("stdout:{s}", .{message});
+            // std.log.info("stdout:{s}", .{message});
         }
         if (poller.fifo(.stderr).count > 0){
             const fifo = poller.fifo(.stderr);
-            const message = try fifo.reader().readAllAlloc(allocator, fifo.count);
-            defer allocator.free(message);
+            const msg_len = try fifo.reader().read(&buf);
+            const message = buf[0..msg_len];
             // const message = fifo.buf[fifo.head..][0..fifo.count];
             WebsocketHandler.publish(.{ .channel = self.channel, .message = message });
-            std.log.info("stderr:{s}", .{message});
+            // std.log.info("stderr:{s}", .{message});
         }
 
-        // if (self.process.poll()) |status| {
-        //     std.debug.print("Process exited with status {}\n", .{ status });
+        if (!self.connected) {
+            const term = try self.process.kill();
+            std.debug.print("Process exited with status {}\n", .{ term });
+        }
+        // if (std.os.poll( self.process.id, 10)) |status| {
         //     break;
         // }
     }
@@ -52,6 +62,7 @@ pub fn runProcess(self: *Context, allocator: std.mem.Allocator) !void {
 const ContextList = std.ArrayList(*Context);
 
 pub const ContextManager = struct {
+    argv: []const[]const u8,
     allocator: std.mem.Allocator,
     channel: []const u8,
     usernamePrefix: []const u8,
@@ -61,11 +72,13 @@ pub const ContextManager = struct {
     const Self = @This();
 
     pub fn init(
+        argv: []const[]const u8,
         allocator: std.mem.Allocator,
         channelName: []const u8,
         usernamePrefix: []const u8,
     ) Self {
         return .{
+            .argv = argv,
             .allocator = allocator,
             .channel = channelName,
             .usernamePrefix = usernamePrefix,
@@ -91,13 +104,14 @@ pub const ContextManager = struct {
             .{ self.usernamePrefix, self.contexts.items.len },
         );
         var proc = std.ChildProcess.init(
-            &[_][]const u8{ "bash", "-i" },
+            self.argv,
             self.allocator,
         );
         proc.stdin_behavior = .Pipe;
         proc.stdout_behavior = .Pipe;
         proc.stderr_behavior = .Pipe;
         ctx.* = .{
+            .manager = self,
             .userName = userName,
             .channel = self.channel,
             // used in subscribe()
@@ -147,6 +161,7 @@ fn on_open_websocket(context: ?*Context, handle: WebSockets.WsHandle) void {
 fn on_close_websocket(context: ?*Context, uuid: isize) void {
     _ = uuid;
     if (context) |ctx| {
+        ctx.connected = false;
         // const res = ctx.process.wait() catch unreachable;
 
         ctx.process.stdin.?.close();
@@ -180,7 +195,10 @@ fn handle_websocket_message(
         // var buf: [buflen]u8 = undefined;
 
 
-        ctx.process.stdin.?.writeAll(message) catch @panic("proc write error");
+        ctx.process.stdin.?.writeAll(message) catch {
+            std.log.err("proc write error: {any}", .{ctx});
+            return;
+        };
         // ctx.process.stdin.?.sync() catch @panic("proc sync error");
         // const format_string = "{s}: {s}\r\n";
         // const fmt_string_extra_len = 2; // ": " between the two strings
@@ -239,8 +257,3 @@ pub fn on_upgrade(r: zap.SimpleRequest, target_protocol: []const u8) void {
     };
     std.log.info("connection upgrade OK", .{});
 }
-
-// global variables, yeah!
-pub var GlobalContextManager: ContextManager = undefined;
-
-const WebsocketHandler = WebSockets.Handler(Context);

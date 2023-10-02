@@ -90,7 +90,11 @@ pub fn build(b: *std.Build) void {
 
     var run_server = b.step("run", "run the server");
     if (!no_update_client) server.step.dependOn(client);
-    run_server.dependOn(&b.addRunArtifact(server).step);
+    const run_step = b.addRunArtifact(server);
+    if (b.args) |args| {
+        run_step.addArgs(args);
+    }
+    run_server.dependOn(&run_step.step);
 
     var install = b.getInstallStep();
     if (!no_update_client) install.dependOn(client);
