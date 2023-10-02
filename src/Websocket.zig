@@ -10,7 +10,44 @@ const Context = struct {
     // connection
     subscribeArgs: WebsocketHandler.SubscribeArgs,
     settings: WebsocketHandler.WebSocketSettings,
+    thread: std.Thread,
+
 };
+
+pub fn runProcess(self: *Context, allocator: std.mem.Allocator) !void {
+    try self.process.spawn();
+
+    const stdout = self.process.stdout.?.reader();
+    _ = stdout;
+    var poller = std.io.poll(allocator, enum { stdout, stderr }, .{
+        .stdout = self.process.stdout.?,
+        .stderr = self.process.stderr.?,
+    });
+    defer poller.deinit();
+
+    while (try poller.poll()) {
+        if (poller.fifo(.stdout).count > 0){
+            const fifo = poller.fifo(.stdout);
+            const message = try fifo.reader().readAllAlloc(allocator, fifo.count);
+            defer allocator.free(message);
+            WebsocketHandler.publish(.{ .channel = self.channel, .message = message });
+            std.log.info("stdout:{s}", .{message});
+        }
+        if (poller.fifo(.stderr).count > 0){
+            const fifo = poller.fifo(.stderr);
+            const message = try fifo.reader().readAllAlloc(allocator, fifo.count);
+            defer allocator.free(message);
+            // const message = fifo.buf[fifo.head..][0..fifo.count];
+            WebsocketHandler.publish(.{ .channel = self.channel, .message = message });
+            std.log.info("stderr:{s}", .{message});
+        }
+
+        // if (self.process.poll()) |status| {
+        //     std.debug.print("Process exited with status {}\n", .{ status });
+        //     break;
+        // }
+    }
+}
 
 const ContextList = std.ArrayList(*Context);
 
@@ -54,9 +91,12 @@ pub const ContextManager = struct {
             .{ self.usernamePrefix, self.contexts.items.len },
         );
         var proc = std.ChildProcess.init(
-            &[_][]const u8{ "bash", "-c", "echo SUBTEST" },
+            &[_][]const u8{ "bash", "-i" },
             self.allocator,
         );
+        proc.stdin_behavior = .Pipe;
+        proc.stdout_behavior = .Pipe;
+        proc.stderr_behavior = .Pipe;
         ctx.* = .{
             .userName = userName,
             .channel = self.channel,
@@ -74,8 +114,8 @@ pub const ContextManager = struct {
                 .on_message = handle_websocket_message,
                 .context = ctx,
             },
+            .thread = try std.Thread.spawn(.{}, runProcess, .{ctx, self.allocator}),
         };
-        try proc.spawn();
         try self.contexts.append(ctx);
         return ctx;
     }
@@ -94,12 +134,12 @@ fn on_open_websocket(context: ?*Context, handle: WebSockets.WsHandle) void {
         var buf: [2048]u8 = undefined;
         const message = std.fmt.bufPrint(
             &buf,
-            "{s} joined the chat with args {any}\r\n",
+            "{s} joined the chat with args {any}\n",
             .{ctx.userName, ctx.subscribeArgs},
         ) catch @panic("bufPrint error");
 
         // send notification to all others
-        WebsocketHandler.publish(.{ .channel = ctx.channel, .message = message });
+        // WebsocketHandler.publish(.{ .channel = ctx.channel, .message = message });
         std.log.info("new websocket opened: {s}", .{message});
     }
 }
@@ -109,6 +149,10 @@ fn on_close_websocket(context: ?*Context, uuid: isize) void {
     if (context) |ctx| {
         // const res = ctx.process.wait() catch unreachable;
 
+        ctx.process.stdin.?.close();
+        ctx.process.stdout.?.close();
+        ctx.process.stderr.?.close();
+        ctx.thread.join();
         // say goodbye
         var buf: [128]u8 = undefined;
         const message = std.fmt.bufPrint(
@@ -132,38 +176,43 @@ fn handle_websocket_message(
     _ = handle;
     if (context) |ctx| {
         // send message
-        const buflen = 128; // arbitrary len
-        var buf: [buflen]u8 = undefined;
+        // const buflen = 128; // arbitrary len
+        // var buf: [buflen]u8 = undefined;
 
-        const format_string = "{s}: {s}\r\n";
-        const fmt_string_extra_len = 2; // ": " between the two strings
+
+        ctx.process.stdin.?.writeAll(message) catch @panic("proc write error");
+        // ctx.process.stdin.?.sync() catch @panic("proc sync error");
+        // const format_string = "{s}: {s}\r\n";
+        // const fmt_string_extra_len = 2; // ": " between the two strings
         //
-        const max_msg_len = buflen - ctx.userName.len - fmt_string_extra_len;
-        if (max_msg_len > 0) {
-            // there is space for the message, because the user name + format
-            // string extra do not exceed the buffer now, let's check: do we
-            // need to trim the message?
-            var trimmed_message: []const u8 = message;
-            if (message.len > max_msg_len) {
-                trimmed_message = message[0..max_msg_len];
-            }
-            const chat_message = std.fmt.bufPrint(
-                &buf,
-                format_string,
-                .{ ctx.userName, trimmed_message },
-            ) catch unreachable;
+        // const max_msg_len = buflen - ctx.userName.len - fmt_string_extra_len;
+        // if (max_msg_len > 0) {
+        //     // there is space for the message, because the user name + format
+        //     // string extra do not exceed the buffer now, let's check: do we
+        //     // need to trim the message?
+        //     var trimmed_message: []const u8 = message;
+        //     if (message.len > max_msg_len) {
+        //         trimmed_message = message[0..max_msg_len];
+        //     }
+        //     const chat_message = std.fmt.bufPrint(
+        //         &buf,
+        //         format_string,
+        //         .{ ctx.userName, trimmed_message },
+        //     ) catch unreachable;
+        //     _ = chat_message;
+            
 
-            // send notification to all others
-            WebsocketHandler.publish(
-                .{ .channel = ctx.channel, .message = chat_message },
-            );
-            std.log.info("{s}", .{chat_message});
-        } else {
-            std.log.warn(
-                "Username is very long, cannot deal with that size: {d}",
-                .{ctx.userName.len},
-            );
-        }
+        //     // send notification to all others
+        //     // WebsocketHandler.publish(
+        //     //     .{ .channel = ctx.channel, .message = chat_message },
+        //     // );
+        //     // std.log.info("{s}", .{chat_message});
+        // } else {
+        //     std.log.warn(
+        //         "Username is very long, cannot deal with that size: {d}",
+        //         .{ctx.userName.len},
+        //     );
+        // }
     }
 }
 

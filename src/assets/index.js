@@ -53,7 +53,7 @@ window.addEventListener("resize", (ev)=>{
     instance.exports.resize(window.innerWidth, window.innerHeight);
 });
 
-var term = new Terminal();
+var term = new Terminal({convertEol: true});
 term.open(term_div);
 // term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m $ ');
 
@@ -69,6 +69,14 @@ console.log("Connecting Websocket:" ,ws_url.href);
 var ws = new WebSocket(ws_url.href);
 const attachAddon = new AttachAddon.AttachAddon(ws);
 term.loadAddon(attachAddon);
+let fitAddon = new FitAddon.FitAddon();
+term.loadAddon(fitAddon);
+fitAddon.fit();
+
+term.onResize(function (evt) {
+   websocket.send({ rows: evt.rows });
+});
+
 
 ws.onmessage = function(e) { 
   console.log("MESSAGE:", e);

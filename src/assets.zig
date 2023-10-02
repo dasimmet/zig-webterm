@@ -33,4 +33,8 @@ pub const map = std.ComptimeStringMap(StaticResponse, [_]struct { []const u8, St
         .body = embedAsset("xterm-addon-attach.min.js"),
         .content_type = "text/javascript",
     } },
+    .{ "/xterm-addon-fit.min.js", .{
+        .body = embedAsset("xterm-addon-fit.min.js"),
+        .content_type = "text/javascript",
+    } },
 });
