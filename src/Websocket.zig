@@ -22,9 +22,6 @@ const Context = struct {
 
 pub fn runProcess(self: *Context, allocator: std.mem.Allocator) !void {
     try self.process.spawn();
-
-    const stdout = self.process.stdout.?.reader();
-    _ = stdout;
     var poller = std.io.poll(allocator, enum { stdout, stderr }, .{
         .stdout = self.process.stdout.?,
         .stderr = self.process.stderr.?,
