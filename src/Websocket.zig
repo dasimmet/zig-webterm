@@ -2,6 +2,8 @@ const std = @import("std");
 const zap = @import("zap");
 const WebSockets = zap.WebSockets;
 
+const Process = @import("Process.zig");
+
 // global variables, yeah!
 pub var GlobalContextManager: ContextManager = undefined;
 const WebsocketHandler = WebSockets.Handler(Context);
@@ -11,57 +13,23 @@ const Context = struct {
     connected: bool = true,
     userName: []const u8,
     channel: []const u8,
-    process: std.ChildProcess,
+    process: Process,
     // we need to hold on to them and just re-use them for every incoming
     // connection
     subscribeArgs: WebsocketHandler.SubscribeArgs,
     settings: WebsocketHandler.WebSocketSettings,
-    thread: std.Thread,
 
     pub fn deinit(ctx: *Context) void {
         ctx.connected = false;
-        ctx.process.stdin.?.close();
-        ctx.process.stdout.?.close();
-        ctx.process.stderr.?.close();
-        ctx.thread.join();
-    }
-    pub fn runProcess(self: *Context, allocator: std.mem.Allocator) !void {
-        try self.process.spawn();
-        var poller = std.io.poll(allocator, enum { stdout, stderr }, .{
-            .stdout = self.process.stdout.?,
-            .stderr = self.process.stderr.?,
-        });
-        defer poller.deinit();
-
-        var buf: [4096]u8 = undefined;
-        while (try poller.poll()) {
-            if (poller.fifo(.stdout).count > 0) {
-                const fifo = poller.fifo(.stdout);
-                const msg_len = try fifo.reader().read(&buf);
-                const message = buf[0..msg_len];
-
-                WebsocketHandler.publish(.{ .channel = self.channel, .message = message });
-                // std.log.info("stdout:{s}", .{message});
-            }
-            if (poller.fifo(.stderr).count > 0) {
-                const fifo = poller.fifo(.stderr);
-                const msg_len = try fifo.reader().read(&buf);
-                const message = buf[0..msg_len];
-
-                WebsocketHandler.publish(.{ .channel = self.channel, .message = message });
-                // std.log.info("stderr:{s}", .{message});
-            }
-
-            if (!self.connected) {
-                const term = try self.process.kill();
-                std.debug.print("Process exited with status {}\n", .{term});
-            }
-        }
+        ctx.process.proc.stdin.?.close();
+        ctx.process.proc.stdout.?.close();
+        ctx.process.proc.stderr.?.close();
+        ctx.process.thread.join();
     }
 };
 
 pub fn runProcess(self: *Context, allocator: std.mem.Allocator) !void {
-    try self.runProcess(allocator);
+    try self.process.run(allocator, Context);
 }
 
 const ContextList = std.ArrayList(*Context);
@@ -125,7 +93,14 @@ pub const ContextManager = struct {
                 .force_text = true,
                 .context = ctx,
             },
-            .process = proc,
+            .process = .{
+                .proc = proc,
+                .thread = try std.Thread.spawn(
+                    .{},
+                    runProcess,
+                    .{ ctx, self.allocator },
+                ),
+            },
             // used in upgrade()
             .settings = .{
                 .on_open = on_open_websocket,
@@ -133,11 +108,6 @@ pub const ContextManager = struct {
                 .on_message = handle_websocket_message,
                 .context = ctx,
             },
-            .thread = try std.Thread.spawn(
-                .{},
-                runProcess,
-                .{ ctx, self.allocator },
-            ),
         };
         try self.contexts.append(ctx);
         return ctx;
@@ -204,7 +174,7 @@ fn handle_websocket_message(
         // const buflen = 128; // arbitrary len
         // var buf: [buflen]u8 = undefined;
 
-        ctx.process.stdin.?.writeAll(message) catch {
+        ctx.process.proc.stdin.?.writeAll(message) catch {
             std.log.err("proc write error: {any}", .{ctx});
             return;
         };
