@@ -6,7 +6,7 @@ const Process = @import("Process.zig");
 
 // global variables, yeah!
 pub var GlobalContextManager: ContextManager = undefined;
-const WebsocketHandler = WebSockets.Handler(Context);
+pub const WebsocketHandler = WebSockets.Handler(Context);
 
 const Context = struct {
     manager: *ContextManager,
@@ -25,6 +25,11 @@ const Context = struct {
         ctx.process.proc.stdout.?.close();
         ctx.process.proc.stderr.?.close();
         ctx.process.thread.join();
+    }
+
+    pub fn publish(ctx: Context, message: []const u8) void {
+        const opts = .{ .channel = ctx.channel, .message = message };
+        return WebsocketHandler.publish(opts);
     }
 };
 

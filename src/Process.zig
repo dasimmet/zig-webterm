@@ -1,6 +1,4 @@
 const std = @import("std");
-const zap = @import("zap");
-const WebSockets = zap.WebSockets;
 
 const Process = @This();
 
@@ -8,7 +6,6 @@ proc: std.ChildProcess,
 thread: std.Thread,
 
 pub fn run(self: *Process, allocator: std.mem.Allocator, comptime contextType: type ) !void {
-    const WebsocketHandler = WebSockets.Handler(contextType);
     const ctx = @fieldParentPtr(contextType, "process", self);
 
     try self.proc.spawn();
@@ -25,7 +22,7 @@ pub fn run(self: *Process, allocator: std.mem.Allocator, comptime contextType: t
             const msg_len = try fifo.reader().read(&buf);
             const message = buf[0..msg_len];
 
-            WebsocketHandler.publish(.{ .channel = ctx.channel, .message = message });
+            ctx.publish(message);
             // std.log.info("stdout:{s}", .{message});
         }
         if (poller.fifo(.stderr).count > 0) {
@@ -33,7 +30,7 @@ pub fn run(self: *Process, allocator: std.mem.Allocator, comptime contextType: t
             const msg_len = try fifo.reader().read(&buf);
             const message = buf[0..msg_len];
 
-            WebsocketHandler.publish(.{ .channel = ctx.channel, .message = message });
+            ctx.publish(message);
             // std.log.info("stderr:{s}", .{message});
         }
 
