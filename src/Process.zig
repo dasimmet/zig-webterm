@@ -5,7 +5,7 @@ const Process = @This();
 proc: std.ChildProcess,
 thread: std.Thread,
 
-pub fn run(self: *Process, allocator: std.mem.Allocator, comptime contextType: type ) !void {
+pub fn run(self: *Process, allocator: std.mem.Allocator, comptime contextType: type) !void {
     const ctx = @fieldParentPtr(contextType, "process", self);
 
     try self.proc.spawn();
