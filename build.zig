@@ -1,4 +1,5 @@
 const std = @import("std");
+const CompressStep = @import("src/assets.zig").CompressStep;
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -78,6 +79,13 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const assets_compressed = CompressStep.init(
+        b,
+        .{ .path = "src/assets" },
+        "assets",
+    );
+    server.step.dependOn(&assets_compressed.step);
+
     const assets = b.addModule("assets", .{
         .source_file = .{ .path = "src/assets.zig" },
     });
