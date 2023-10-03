@@ -11,7 +11,7 @@ const Context = struct {
     connected: bool = true,
     userName: []const u8,
     channel: []const u8,
-    process: std.ChildProcess = undefined,
+    process: std.ChildProcess,
     // we need to hold on to them and just re-use them for every incoming
     // connection
     subscribeArgs: WebsocketHandler.SubscribeArgs,
@@ -25,40 +25,43 @@ const Context = struct {
         ctx.process.stderr.?.close();
         ctx.thread.join();
     }
+    pub fn runProcess(self: *Context, allocator: std.mem.Allocator) !void {
+        try self.process.spawn();
+        var poller = std.io.poll(allocator, enum { stdout, stderr }, .{
+            .stdout = self.process.stdout.?,
+            .stderr = self.process.stderr.?,
+        });
+        defer poller.deinit();
+
+        var buf: [4096]u8 = undefined;
+        while (try poller.poll()) {
+            if (poller.fifo(.stdout).count > 0) {
+                const fifo = poller.fifo(.stdout);
+                const msg_len = try fifo.reader().read(&buf);
+                const message = buf[0..msg_len];
+
+                WebsocketHandler.publish(.{ .channel = self.channel, .message = message });
+                // std.log.info("stdout:{s}", .{message});
+            }
+            if (poller.fifo(.stderr).count > 0) {
+                const fifo = poller.fifo(.stderr);
+                const msg_len = try fifo.reader().read(&buf);
+                const message = buf[0..msg_len];
+
+                WebsocketHandler.publish(.{ .channel = self.channel, .message = message });
+                // std.log.info("stderr:{s}", .{message});
+            }
+
+            if (!self.connected) {
+                const term = try self.process.kill();
+                std.debug.print("Process exited with status {}\n", .{term});
+            }
+        }
+    }
 };
 
 pub fn runProcess(self: *Context, allocator: std.mem.Allocator) !void {
-    try self.process.spawn();
-    var poller = std.io.poll(allocator, enum { stdout, stderr }, .{
-        .stdout = self.process.stdout.?,
-        .stderr = self.process.stderr.?,
-    });
-    defer poller.deinit();
-
-    var buf: [4096]u8 = undefined;
-    while (try poller.poll()) {
-        if (poller.fifo(.stdout).count > 0) {
-            const fifo = poller.fifo(.stdout);
-            const msg_len = try fifo.reader().read(&buf);
-            const message = buf[0..msg_len];
-
-            WebsocketHandler.publish(.{ .channel = self.channel, .message = message });
-            // std.log.info("stdout:{s}", .{message});
-        }
-        if (poller.fifo(.stderr).count > 0) {
-            const fifo = poller.fifo(.stderr);
-            const msg_len = try fifo.reader().read(&buf);
-            const message = buf[0..msg_len];
-
-            WebsocketHandler.publish(.{ .channel = self.channel, .message = message });
-            // std.log.info("stderr:{s}", .{message});
-        }
-
-        if (!self.connected) {
-            const term = try self.process.kill();
-            std.debug.print("Process exited with status {}\n", .{term});
-        }
-    }
+    try self.runProcess(allocator);
 }
 
 const ContextList = std.ArrayList(*Context);

@@ -11,10 +11,10 @@ pub fn main() !void {
     var allocator = gpa.allocator();
 
     const argv = try std.process.argsAlloc(allocator);
-    defer allocator.free(argv);
+    defer std.process.argsFree(allocator, argv);
 
     for (argv) |a| {
-        std.log.warn("argv: {s}", .{a});
+        std.log.info("argv: {s}", .{a});
     }
 
     Websocket.GlobalContextManager = Websocket.ContextManager.init(

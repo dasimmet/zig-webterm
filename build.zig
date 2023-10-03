@@ -78,6 +78,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const assets = b.addModule("assets", .{
+        .source_file = .{ .path = "src/assets.zig" },
+    });
+    server.addModule("assets", assets);
     server.addModule("zap", zap.module("zap"));
     server.linkLibrary(zap.artifact("facil.io"));
 
