@@ -23,7 +23,7 @@ pub fn on_request(r: zap.SimpleRequest) void {
 pub fn process_response(r: zap.SimpleRequest, path: []const u8, res: anytype) void {
     r.setStatus(.ok);
     if (res.compression == .Deflate) {
-        std.log.warn("Deflate", .{});
+        std.log.debug("Content-Encoding: Deflate", .{});
         r.setHeader("Content-Encoding", "deflate") catch
             server_error(r, "500 - Set Content-Encoding Error");
     }

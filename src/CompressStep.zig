@@ -48,20 +48,20 @@ pub fn init(
 
 const Header =
     \\// a map of embedded files
-    \\const zig_version_string = "{}";
+    \\pub const zig_version_string = "{}";
     \\const std = @import("std");
-    \\const Compression = enum{{
+    \\pub const Compression = enum{{
     \\  Raw,
     \\  Gzip,
     \\  Deflate,
     \\  XZ,
     \\}};
-    \\const Entry = struct{{
+    \\pub const Entry = struct{{
     \\    source: []const u8,
     \\    body: []const u8,
     \\    compression: Compression = .{s},
     \\}};
-    \\const EntryMap = struct {{
+    \\pub const EntryMap = struct {{
     \\  []const u8,
     \\  Entry,
     \\}};
