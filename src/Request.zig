@@ -1,6 +1,6 @@
 const std = @import("std");
 const zap = @import("zap");
-const assets = @import("assets.zig");
+const assets = @import("assets");
 
 pub fn on_request(r: zap.SimpleRequest) void {
     if (r.path == null) {

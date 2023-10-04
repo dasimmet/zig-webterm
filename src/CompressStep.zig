@@ -7,7 +7,7 @@ source_path: ?std.build.LazyPath = null,
 output_file: std.Build.GeneratedFile,
 fd: std.fs.File = undefined,
 compression: Compression = .XZ,
-cache_key: std.ArrayList(u8),
+max_file_size: usize = 1073741824,
 
 const CompressStep = @This();
 pub const Compression = enum {
@@ -41,7 +41,6 @@ pub fn init(
         .step = step,
         .dir = dir,
         .output_file = .{ .step = &self.step },
-        .cache_key = std.ArrayList(u8).init(step.owner.allocator),
     };
     return self;
 }
@@ -82,9 +81,14 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     const cwd = std.fs.cwd();
     
     // the coolest hack when working on caching mechanisms is to include the source :-D
-    _ = try man.addFile(@src().file, 1048576);
+    // but dont forget to quote this before committing
+    _ = try man.addFile(@src().file, compress.max_file_size);
+
+    man.hash.addBytes(@typeName(Compression));
+    man.hash.addBytes(@tagName(compress.compression));
 
     man.hash.addBytes(@typeName(CompressStep));
+    if (compress.source_path != null) man.hash.addBytes(compress.source_path.?.path);
     man.hash.addBytes(compress.dir.path);
 
     var cacheContext: CacheContext = .{
@@ -193,7 +197,7 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
 
     var content: ?[]const u8 = null;
     if (compress.compression != .XZ){
-        content = try fd.readToEndAlloc(allocator, 1073741824);
+        content = try fd.readToEndAlloc(allocator, compress.max_file_size);
         defer allocator.free(content.?);
     } 
 

@@ -14,23 +14,6 @@ pub inline fn embedAsset(p: []const u8) []const u8 {
     return @embedFile(assets_path ++ p);
 }
 
-// test importing the generated assets
-// const generated_assets = @import("asset_gen.zig");
-
-// pub fn map_lists(kvs: anytype) ResponseMap {
-//     _ = kvs;
-
-//     for (generated_assets.map.kvs) |kv| {
-//         std.log.warn("KV: {s}", .{kv[0]});
-//     }
-// }
-
-// pub const map_a = std.ComptimeStringMap(
-//     StaticResponse,
-//     [_]ResponseMap{},
-// );
-
-// a map of path on the server to the embedded response
 pub const map = std.ComptimeStringMap(
     StaticResponse,
     [_]ResponseMap{
