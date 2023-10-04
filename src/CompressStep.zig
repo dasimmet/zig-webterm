@@ -1,10 +1,13 @@
 const std = @import("std");
+const RecursiveDirIterator = @import("RecursiveDirIterator.zig");
 
 step: std.build.Step,
 dir: std.build.LazyPath,
+source_path: ?std.build.LazyPath = null,
 output_file: std.Build.GeneratedFile,
 fd: std.fs.File = undefined,
 compression: Compression = .XZ,
+cache_key: std.ArrayList(u8),
 
 const CompressStep = @This();
 pub const Compression = enum {
@@ -38,6 +41,7 @@ pub fn init(
         .step = step,
         .dir = dir,
         .output_file = .{ .step = &self.step },
+        .cache_key = std.ArrayList(u8).init(step.owner.allocator),
     };
     return self;
 }
@@ -64,17 +68,23 @@ const suffix = "});\n";
 
 fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     _ = prog_node;
+    const b = step.owner;
+    const allocator = b.allocator;
+
     var compress = @fieldParentPtr(
         CompressStep,
         "step",
         step,
     );
 
-    const b = step.owner;
     var man = b.cache.obtain();
     defer man.deinit();
     const cwd = std.fs.cwd();
     
+    // the coolest hack when working on caching mechanisms is to include the source :-D
+    _ = try man.addFile(@src().file, 1048576);
+
+    man.hash.addBytes(@typeName(CompressStep));
     man.hash.addBytes(compress.dir.path);
 
     var cacheContext: CacheContext = .{
@@ -87,24 +97,31 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
         cwd,
         &cacheContext,
     );
-    
-    // if (try step.cacheHit(&man)) {
-    // const digest = man.final();
-    // std.log.warn("Digest: {s}", .{digest});
-
-    // step.dump(std.io.getStdOut());
-    var all_cached = false;
-
-    for (step.dependencies.items) |dep| {
-        all_cached = all_cached and dep.result_cached;
+    if (try man.hit()) {
+        const digest = man.final();
+        compress.output_file.path = try b.cache_root.join(allocator, &.{
+            "o", &digest, "compress.zig",
+        });
+        std.log.warn("HIT: {s}", .{compress.output_file.path.?});
+        step.result_cached = true;
+        return;
     }
+    const digest = man.final();
 
-    step.result_cached = all_cached;
-    if (all_cached) return;
+    if (compress.source_path) |p| {
+        compress.output_file.path = p.path;
+    } else {
+        compress.output_file.path = try b.cache_root.join(allocator, &.{
+            "o", &digest, "compress.zig",
+        });
+    }
+    std.log.warn("DIGEST: {s}", .{digest});
 
-    compress.output_file.path = "src/asset_gen.zig";
     const out_path = compress.output_file.getPath();
     std.log.warn("out: {s}", .{out_path});
+
+    const out_dir = std.fs.path.dirname(out_path).?;
+    try cwd.makeDir(out_dir);
 
     compress.fd = try cwd.createFile(out_path, .{});
     defer compress.fd.close();
@@ -119,6 +136,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     );
 
     try compress.fd.writeAll(suffix);
+    try step.writeManifest(&man);
 }
 
 fn cacheEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, ctx: *CacheContext) !void {
@@ -138,7 +156,7 @@ fn cacheEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, ctx
         &[_][]const u8{ realpath, p, e },
     );
     defer allocator.free(fullpath);
-    ctx.man.hash.addBytes(fullpath);
+    _ = try ctx.man.addFile(fullpath, null); // 1GB
 }
 
 fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, compress: *CompressStep) !void {
@@ -228,51 +246,3 @@ pub fn compress_file_to_mem(file: std.fs.File, comp: Compression) ![]const u8 {
     return body;
 }
 
-const RecursiveDirIterator = struct {
-    pub fn run(
-        entryFn: anytype,
-        base: []const u8,
-        dir: std.fs.Dir,
-        args: anytype,
-    ) !void {
-        return iter(entryFn, base, dir, base, args);
-    }
-
-    fn iter(
-        entryFn: anytype,
-        base: []const u8,
-        dir: std.fs.Dir,
-        path: []const u8,
-        args: anytype,
-    ) !void {
-        var fd = try dir.openDir(
-            path,
-            std.fs.Dir.OpenDirOptions{
-                .access_sub_paths = true,
-                .no_follow = true,
-            },
-        );
-        defer fd.close();
-        var fd_iter = try fd.openIterableDir(
-            ".",
-            std.fs.Dir.OpenDirOptions{
-                .access_sub_paths = true,
-                .no_follow = true,
-            },
-        );
-        defer fd_iter.close();
-
-        var dir_iter = fd_iter.iterate();
-        while (try dir_iter.next()) |entry| {
-            switch (entry.kind) {
-                .directory => {
-                    std.log.warn("Entering {s},{s},{s}", .{ base, path, entry.name });
-                    try RecursiveDirIterator.iter(entryFn, base, fd, entry.name, args);
-                },
-                else => {
-                    try entryFn(dir, base, path, entry.name, args);
-                },
-            }
-        }
-    }
-};
