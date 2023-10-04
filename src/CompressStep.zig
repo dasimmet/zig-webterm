@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const RecursiveDirIterator = @import("RecursiveDirIterator.zig");
 
 step: std.build.Step,
@@ -45,8 +46,9 @@ pub fn init(
     return self;
 }
 
-const prefix =
+const Header =
     \\// a map of embedded files
+    \\const zig_version_string = "{}";
     \\const std = @import("std");
     \\const Compression = enum{{
     \\  Raw,
@@ -68,7 +70,7 @@ const prefix =
     \\    [_]EntryMap{{
     \\
 ;
-const suffix = "});\n";
+const Footer = "});\n";
 
 fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     _ = prog_node;
@@ -89,10 +91,11 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     // but dont forget to quote this before committing
     // _ = try man.addFile(@src().file, compress.max_file_size);
 
+    man.hash.addBytes(@typeName(CompressStep));
+    man.hash.addBytes(Header);
     man.hash.addBytes(@typeName(Compression));
     man.hash.addBytes(@tagName(compress.compression));
 
-    man.hash.addBytes(@typeName(CompressStep));
     if (compress.source_path != null) man.hash.addBytes(compress.source_path.?.path);
     man.hash.addBytes(compress.dir.path);
 
@@ -124,10 +127,10 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
             "o", &digest, "compress.zig",
         });
     }
-    std.log.warn("DIGEST: {s}", .{digest});
+    std.log.debug("DIGEST: {s}", .{digest});
 
     const out_path = compress.output_file.getPath();
-    std.log.warn("out: {s}", .{out_path});
+    std.log.debug("out: {s}", .{out_path});
 
     const out_dir = std.fs.path.dirname(out_path).?;
     try cwd.makeDir(out_dir);
@@ -135,7 +138,10 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     compress.fd = try cwd.createFile(out_path, .{});
     defer compress.fd.close();
 
-    try compress.fd.writer().print(prefix, .{@tagName(compress.compression)});
+    try compress.fd.writer().print(Header, .{
+        std.zig.fmtEscapes(builtin.zig_version_string),
+        @tagName(compress.compression),
+    });
 
     try RecursiveDirIterator.run(
         processEntry,
@@ -144,7 +150,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
         compress,
     );
 
-    try compress.fd.writeAll(suffix);
+    try compress.fd.writeAll(Footer);
     try step.writeManifest(&man);
 }
 
@@ -165,7 +171,8 @@ fn cacheEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, ctx
         &[_][]const u8{ realpath, p, e },
     );
     defer allocator.free(fullpath);
-    _ = try ctx.man.addFile(fullpath, null); // 1GB
+    ctx.man.hash.addBytes(fullpath);
+    _ = try ctx.man.addFile(fullpath, compress.max_file_size);
 }
 
 fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, compress: *CompressStep) !void {
@@ -193,7 +200,7 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
     defer fd.close();
 
     try out_writer.print(
-        ".{{\"{}\",.{{\n",
+        ".{{\"{}\",\n.{{\n",
         .{
             std.zig.fmtEscapes(relpath),
         },
@@ -204,15 +211,9 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
             std.zig.fmtEscapes(fullpath),
         },
     );
-
-    var content: ?[]const u8 = null;
-    if (compress.compression != .XZ) {
-        content = try fd.readToEndAlloc(allocator, compress.max_file_size);
-        defer allocator.free(content.?);
-    }
-
     switch (compress.compression) {
         .Deflate => {
+            const content = try fd.readToEndAlloc(allocator, compress.max_file_size);
             var compressed = std.ArrayList(u8).init(allocator);
             defer compressed.deinit();
 
@@ -223,26 +224,38 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
             );
             defer Compressor.deinit();
 
-            _ = try Compressor.write(content.?);
+            _ = try Compressor.write(content);
             try Compressor.flush();
+            try out_writer.print(
+                "\"{}\"",
+                .{
+                    std.zig.fmtEscapes(compressed.items),
+                },
+            );
         },
-        .Raw => {},
+        .Raw => {
+            const content = try fd.readToEndAlloc(allocator, compress.max_file_size);
+            try out_writer.print(
+                "\"{}\"",
+                .{
+                    std.zig.fmtEscapes(content),
+                },
+            );
+        },
         .Gzip => {
             return error.TODO;
         },
         .XZ => {
-            content = try compress_file_to_mem(fd, compress.compression);
+            const content = try compress_file_to_mem(fd, compress.compression);
+            try out_writer.print(
+                "\"{}\"",
+                .{
+                    std.zig.fmtEscapes(content),
+                },
+            );
         },
     }
-    if (content) |c| {
-        try out_writer.print(
-            "\"{}\"",
-            .{
-                std.zig.fmtEscapes(c),
-            },
-        );
-    }
-    try compress.fd.writeAll("}},\n");
+    try compress.fd.writeAll(",\n}},\n");
 }
 
 pub fn compress_file_to_mem(file: std.fs.File, comp: Compression) ![]const u8 {

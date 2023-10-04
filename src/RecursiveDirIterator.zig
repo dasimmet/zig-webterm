@@ -38,7 +38,7 @@ fn iter(
     while (try dir_iter.next()) |entry| {
         switch (entry.kind) {
             .directory => {
-                std.log.info("Iterator Entering: {s},{s},{s}", .{ base, path, entry.name });
+                std.log.debug("Iterator Entering: {s},{s},{s}", .{ base, path, entry.name });
                 try RecursiveDirIterator.iter(entryFn, base, fd, entry.name, args);
             },
             .file => {
