@@ -4,8 +4,20 @@ step: std.build.Step,
 dir: std.build.LazyPath,
 output_file: std.Build.GeneratedFile,
 fd: std.fs.File = undefined,
+compression: Compression = .XZ,
 
 const CompressStep = @This();
+pub const Compression = enum {
+    Raw,
+    Gzip,
+    Deflate,
+    XZ,
+};
+
+const CacheContext = struct {
+    compress: *CompressStep,
+    man: *std.Build.Cache.Manifest,
+};
 
 pub fn init(
     b: *std.Build,
@@ -36,6 +48,8 @@ const prefix =
     \\const Compression = enum{
     \\  Raw,
     \\  Gzip,
+    \\  Deflate,
+    \\  XZ,
     \\};
     \\const Entry = struct{
     \\    body: []const u8,
@@ -49,19 +63,49 @@ const prefix =
 const suffix = "});\n";
 
 fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
+    _ = prog_node;
     var compress = @fieldParentPtr(
         CompressStep,
         "step",
         step,
     );
-    _ = prog_node;
+
+    const b = step.owner;
+    var man = b.cache.obtain();
+    defer man.deinit();
+    const cwd = std.fs.cwd();
+    
+    man.hash.addBytes(compress.dir.path);
+
+    var cacheContext: CacheContext = .{
+        .compress = compress,
+        .man = &man,
+    };
+    try RecursiveDirIterator.run(
+        cacheEntry,
+        compress.dir.path,
+        cwd,
+        &cacheContext,
+    );
+    
+    // if (try step.cacheHit(&man)) {
+    // const digest = man.final();
+    // std.log.warn("Digest: {s}", .{digest});
+
     // step.dump(std.io.getStdOut());
+    var all_cached = false;
+
+    for (step.dependencies.items) |dep| {
+        all_cached = all_cached and dep.result_cached;
+    }
+
+    step.result_cached = all_cached;
+    if (all_cached) return;
 
     compress.output_file.path = "src/asset_gen.zig";
     const out_path = compress.output_file.getPath();
     std.log.warn("out: {s}", .{out_path});
 
-    const cwd = std.fs.cwd();
     compress.fd = try cwd.createFile(out_path, .{});
     defer compress.fd.close();
 
@@ -75,14 +119,26 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     );
 
     try compress.fd.writeAll(suffix);
+}
 
-    var all_cached = true;
+fn cacheEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, ctx: *CacheContext) !void {
+    const compress: *CompressStep = ctx.compress;
+    const allocator = compress.step.owner.allocator;
+    const realpath = try d.realpathAlloc(
+        allocator,
+        ".",
+    );
+    defer allocator.free(realpath);
+    var base_buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+    const real_base = try std.fs.realpath(base, &base_buffer);
+    _ = real_base;
 
-    for (step.dependencies.items) |dep| {
-        all_cached = all_cached and dep.result_cached;
-    }
-
-    step.result_cached = all_cached;
+    const fullpath = try std.fs.path.join(
+        allocator,
+        &[_][]const u8{ realpath, p, e },
+    );
+    defer allocator.free(fullpath);
+    ctx.man.hash.addBytes(fullpath);
 }
 
 fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, compress: *CompressStep) !void {
@@ -109,9 +165,6 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
     );
     defer fd.close();
 
-    const content = try fd.readToEndAlloc(allocator, 1073741824);
-    defer allocator.free(content);
-
     try compress.fd.writeAll(".{ ");
     try out_writer.print(
         "\"{}\"",
@@ -119,20 +172,60 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
             std.zig.fmtEscapes(relpath),
         },
     );
-    try compress.fd.writeAll(",.{.body=");
-    try out_writer.print(
-        "\"{}\"",
-        .{
-            std.zig.fmtEscapes(content),
+
+    var content: ?[]const u8 = null;
+    if (compress.compression != .XZ){
+        content = try fd.readToEndAlloc(allocator, 1073741824);
+        defer allocator.free(content.?);
+    } 
+
+    switch (compress.compression) {
+        .Deflate => {
+            try compress.fd.writeAll(",.{.compression=.Deflate, .body=");
+            var compressed = std.ArrayList(u8).init(allocator);
+            defer compressed.deinit();
+
+            var Compressor = try std.compress.deflate.compressor(
+                allocator,
+                compressed.writer(),
+                .{},
+            );
+            defer Compressor.deinit();
+
+            _ = try Compressor.write(content.?);
+            try Compressor.flush();
         },
-    );
-    try compress.fd.writeAll(", .compression=.Raw}},\n");
+        .Raw => {
+        },
+        .Gzip => {
+            return error.TODO;
+        },
+        .XZ => {
+            try compress.fd.writeAll(",.{.compression=.XZ, .body=");
+            content = try compress_file_to_mem(fd, compress.compression);
+        }
+    }
+    if (content) |c| {
+        try out_writer.print(
+            "\"{}\"",
+            .{
+                std.zig.fmtEscapes(c),
+            },
+        );
+    }
+    try compress.fd.writeAll("}},\n");
+}
 
-    // _ = std.compress.deflate.compressor(allocator, compress.fd.writer(), .{
-
-    // });
-
-    // try compress.fd.writeAll(content);
+pub fn compress_file_to_mem(file: std.fs.File, comp: Compression) ![]const u8 {
+    _ = file;
+    var body: []const u8 = undefined;
+    switch (comp) {
+        .XZ => {
+            body = "TODO";
+        },
+        else => return error.TODO,
+    }
+    return body;
 }
 
 const RecursiveDirIterator = struct {
