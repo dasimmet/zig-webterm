@@ -38,15 +38,6 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         },
     );
-    //  if (vendor)
-    //     b.anonymousDependency("libs/zig-js", , .{})
-    // else
-    //     b.dependency("zigjs", .{});
-
-    const zap_dep = std.build.Dependency{
-        .builder = b,
-    };
-    _ = zap_dep;
     const zap = VendorDependency.init(
         b,
         false,
@@ -59,6 +50,11 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         },
     );
+
+    const CompressStepModule = b.addModule("CompressStep", .{
+        .source_file = .{ .path = "src/CompressStep.zig" },
+    });
+    _ = CompressStepModule;
 
     const client_exe = b.addSharedLibrary(.{
         .name = "client",
@@ -84,10 +80,17 @@ pub fn build(b: *std.Build) void {
         .{ .path = "src/assets" },
         "assets",
     );
+    assets_compressed.compression = b.option(
+        CompressStep.Compression,
+        "compression",
+        "which compression to use in CompressStep",
+    ) orelse .Raw;
     server.step.dependOn(&assets_compressed.step);
 
     const assets = b.addModule("assets", .{
-        .source_file = .{ .path = "src/assets.zig" },
+        .source_file = .{
+            .generated = &assets_compressed.output_file,
+        },
     });
     server.addModule("assets", assets);
     server.addModule("zap", zap.module("zap"));

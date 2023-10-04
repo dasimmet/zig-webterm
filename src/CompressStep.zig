@@ -6,7 +6,7 @@ dir: std.build.LazyPath,
 source_path: ?std.build.LazyPath = null,
 output_file: std.Build.GeneratedFile,
 fd: std.fs.File = undefined,
-compression: Compression = .XZ,
+compression: Compression = .Raw,
 max_file_size: usize = 1073741824,
 
 const CompressStep = @This();
@@ -46,21 +46,26 @@ pub fn init(
 }
 
 const prefix =
-    \\// a map of path on the server to the embedded response
+    \\// a map of embedded files
     \\const std = @import("std");
-    \\const Compression = enum{
+    \\const Compression = enum{{
     \\  Raw,
     \\  Gzip,
     \\  Deflate,
     \\  XZ,
-    \\};
-    \\const Entry = struct{
+    \\}};
+    \\const Entry = struct{{
+    \\    source: []const u8,
     \\    body: []const u8,
-    \\    compression: Compression,
-    \\};
+    \\    compression: Compression = .{s},
+    \\}};
+    \\const EntryMap = struct {{
+    \\  []const u8,
+    \\  Entry,
+    \\}};
     \\pub const map = std.ComptimeStringMap(
-    \\    []const u8,
-    \\    [_]struct{[]const u8,Entry}{
+    \\    Entry,
+    \\    [_]EntryMap{{
     \\
 ;
 const suffix = "});\n";
@@ -79,10 +84,10 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     var man = b.cache.obtain();
     defer man.deinit();
     const cwd = std.fs.cwd();
-    
+
     // the coolest hack when working on caching mechanisms is to include the source :-D
     // but dont forget to quote this before committing
-    _ = try man.addFile(@src().file, compress.max_file_size);
+    // _ = try man.addFile(@src().file, compress.max_file_size);
 
     man.hash.addBytes(@typeName(Compression));
     man.hash.addBytes(@tagName(compress.compression));
@@ -130,7 +135,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     compress.fd = try cwd.createFile(out_path, .{});
     defer compress.fd.close();
 
-    try compress.fd.writeAll(prefix);
+    try compress.fd.writer().print(prefix, .{@tagName(compress.compression)});
 
     try RecursiveDirIterator.run(
         processEntry,
@@ -187,23 +192,27 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
     );
     defer fd.close();
 
-    try compress.fd.writeAll(".{ ");
     try out_writer.print(
-        "\"{}\"",
+        ".{{\"{}\",.{{\n",
         .{
             std.zig.fmtEscapes(relpath),
         },
     );
+    try out_writer.print(
+        ".source=\"{}\",\n.body=",
+        .{
+            std.zig.fmtEscapes(fullpath),
+        },
+    );
 
     var content: ?[]const u8 = null;
-    if (compress.compression != .XZ){
+    if (compress.compression != .XZ) {
         content = try fd.readToEndAlloc(allocator, compress.max_file_size);
         defer allocator.free(content.?);
-    } 
+    }
 
     switch (compress.compression) {
         .Deflate => {
-            try compress.fd.writeAll(",.{.compression=.Deflate, .body=");
             var compressed = std.ArrayList(u8).init(allocator);
             defer compressed.deinit();
 
@@ -217,15 +226,13 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
             _ = try Compressor.write(content.?);
             try Compressor.flush();
         },
-        .Raw => {
-        },
+        .Raw => {},
         .Gzip => {
             return error.TODO;
         },
         .XZ => {
-            try compress.fd.writeAll(",.{.compression=.XZ, .body=");
             content = try compress_file_to_mem(fd, compress.compression);
-        }
+        },
     }
     if (content) |c| {
         try out_writer.print(
@@ -249,4 +256,3 @@ pub fn compress_file_to_mem(file: std.fs.File, comp: Compression) ![]const u8 {
     }
     return body;
 }
-
