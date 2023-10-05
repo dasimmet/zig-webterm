@@ -76,6 +76,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     man.hash.addBytes(Header);
     man.hash.addBytes(@typeName(Method));
     man.hash.addBytes(@tagName(compress.method));
+    if (compress.embed_full_path) man.hash.addBytes("embed_full_path");
 
     if (compress.source_path != null) man.hash.addBytes(compress.source_path.?.path);
     man.hash.addBytes(compress.dir.path);
