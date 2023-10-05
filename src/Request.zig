@@ -28,7 +28,7 @@ pub fn process_response(r: zap.SimpleRequest, path: []const u8, res: anytype) vo
         r.setHeader("Content-Encoding", "gzip") catch
             server_error(r, "500 - Set Content-Encoding Error");
     }
-    
+
     const extension = std.fs.path.extension(path);
     const mime = mime_map.get(extension) orelse "text/html";
 

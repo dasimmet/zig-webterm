@@ -1,6 +1,6 @@
 // a map of embedded files
 const std = @import("std");
-pub const Method = enum{
+pub const Method = enum {
     Raw,
     Gzip,
     Deflate,
@@ -8,7 +8,7 @@ pub const Method = enum{
 };
 pub fn Entry(comptime method: Method) type {
     return struct {
-        source: ?[]const u8,
+        full_path: ?[]const u8 = null,
         body: []const u8,
         method: Method = method,
     };

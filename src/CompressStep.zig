@@ -9,6 +9,7 @@ output_file: std.Build.GeneratedFile,
 fd: std.fs.File = undefined,
 method: Method = .Raw,
 max_file_size: usize = 1073741824,
+embed_full_path: bool = false,
 
 const CompressStep = @This();
 
@@ -188,12 +189,13 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
             std.zig.fmtEscapes(relpath),
         },
     );
-    try out_writer.print(
-        ".source=\"{}\",\n.body=",
+    if (compress.embed_full_path) try out_writer.print(
+        ".full_path=\"{}\",\n",
         .{
             std.zig.fmtEscapes(fullpath),
         },
     );
+    try out_writer.writeAll(".body=");
     switch (compress.method) {
         .Deflate => {
             const content = try fd.readToEndAlloc(allocator, compress.max_file_size);
