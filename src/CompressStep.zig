@@ -15,8 +15,9 @@ const CompressStep = @This();
 
 const Header =
     \\pub const zig_version_string = "{}";
+    \\pub const EntryType = Entry(.{s});
     \\pub const map = std.ComptimeStringMap(
-    \\    Entry(.{s}),
+    \\    EntryType,
     \\    [_]EntryMap(.{s}){{
     \\
 ;
