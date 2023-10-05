@@ -10,8 +10,8 @@ steps [54/56] zig build-exe zigtty Debug native... LLVM Emit Object...
 Open http://127.0.0.1:3000 in your browser
 ```
 
-it holds a [src/CompressStep.zig](src/CompressStep.zig) to
-bundle the responses from [src/assets.zig](src/assets.zig)
+it holds a [src/build/CompressStep.zig](src/build/CompressStep.zig) to
+bundle the responses from [assets/](assets/)
 into a `std.ComptimeStringMap` zig source code file.
 This file is added as a module to the server compilation.
 

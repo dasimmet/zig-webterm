@@ -1,5 +1,5 @@
 const std = @import("std");
-const CompressStep = @import("src/CompressStep.zig");
+const CompressStep = @import("src/build/CompressStep.zig");
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -52,7 +52,7 @@ pub fn build(b: *std.Build) void {
     );
 
     const CompressStepModule = b.addModule("CompressStep", .{
-        .source_file = .{ .path = "src/CompressStep.zig" },
+        .source_file = .{ .path = "src/build/CompressStep.zig" },
     });
     _ = CompressStepModule;
 
@@ -130,56 +130,6 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&main_tests.step);
 }
-
-const EmbedExeStep = struct {
-    content: std.Build.LazyPath,
-    compile_step: *std.Build.Step.Compile,
-    step: std.Build.Step,
-
-    pub fn create(b: *std.Build, it: *std.Build.Step.Compile) *@This() {
-        var readStep = std.Build.Step.init(.{
-            .id = .custom,
-            .name = "",
-            .owner = b,
-            .makeFn = make,
-        });
-        // readStep.dependOn(&it.step);
-        var self = b.allocator.create(@This()) catch @panic("OOM");
-        self.* = .{
-            .step = readStep,
-            .compile_step = it,
-            .content = .{ .generated = &.{
-                .step = &self.*.step,
-            } },
-        };
-
-        return self;
-    }
-
-    pub fn make(step: *std.Build.Step, prog_node: *std.Progress.Node) !void {
-        _ = prog_node;
-        const self = @fieldParentPtr(
-            @This(),
-            "step",
-            step,
-        );
-        const b = self.step.owner;
-        _ = b;
-
-        // const fs = std.fs.cwd();
-        // fs.copyFile(self.compile_step.getEmittedBin(), std.path,.{});
-
-        self.content.path = try std.fs.cwd().readFileAlloc(
-            step.owner.allocator,
-            self.compile_step.getEmittedBin().getPath(step.owner),
-            1048576,
-        );
-    }
-
-    pub fn deinit(self: @This()) void {
-        self.path.deinit();
-    }
-};
 
 const VendorDependency = struct {
     const Self = @This();

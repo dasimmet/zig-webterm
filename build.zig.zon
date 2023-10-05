@@ -9,7 +9,7 @@
         // zap v0.1.10-pre
         .zap = .{
             .url = "https://github.com/zigzap/zap/archive/1dce4d3d9e210730cfd01ecf3acedc578d8274f1.tar.gz",
-            .hash = "1220a645e8ae84064f3342609f65d1c97e23c292616f5d1040cdf314ca52d7643f8a",
+            .hash = "122025455368340288f81d5188f01198cee1d5bd7858c330642f79fe27cdef579acf",
         },
         .@"facil.io" = .{
             .url = "https://github.com/zigzap/facil.io/archive/refs/tags/zap-0.0.12.tar.gz",
