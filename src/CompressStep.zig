@@ -7,16 +7,21 @@ dir: std.build.LazyPath,
 source_path: ?std.build.LazyPath = null,
 output_file: std.Build.GeneratedFile,
 fd: std.fs.File = undefined,
-compression: Compression = .Raw,
+method: Method = .Raw,
 max_file_size: usize = 1073741824,
 
 const CompressStep = @This();
-pub const Compression = enum {
-    Raw,
-    Gzip,
-    Deflate,
-    XZ,
-};
+
+const Header =
+    \\pub const zig_version_string = "{}";
+    \\pub const map = std.ComptimeStringMap(
+    \\    Entry(.{s}),
+    \\    [_]EntryMap(.{s}){{
+    \\
+;
+const Footer = "});\n";
+
+pub const Method = @import("CompressHeader.zig").Method;
 
 const CacheContext = struct {
     compress: *CompressStep,
@@ -46,32 +51,6 @@ pub fn init(
     return self;
 }
 
-const Header =
-    \\// a map of embedded files
-    \\pub const zig_version_string = "{}";
-    \\const std = @import("std");
-    \\pub const Compression = enum{{
-    \\  Raw,
-    \\  Gzip,
-    \\  Deflate,
-    \\  XZ,
-    \\}};
-    \\pub const Entry = struct{{
-    \\    source: []const u8,
-    \\    body: []const u8,
-    \\    compression: Compression = .{s},
-    \\}};
-    \\pub const EntryMap = struct {{
-    \\  []const u8,
-    \\  Entry,
-    \\}};
-    \\pub const map = std.ComptimeStringMap(
-    \\    Entry,
-    \\    [_]EntryMap{{
-    \\
-;
-const Footer = "});\n";
-
 fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     _ = prog_node;
     const b = step.owner;
@@ -91,10 +70,11 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     // but dont forget to quote this before committing
     // _ = try man.addFile(@src().file, compress.max_file_size);
 
+    man.hash.addBytes(@embedFile("CompressHeader.zig"));
     man.hash.addBytes(@typeName(CompressStep));
     man.hash.addBytes(Header);
-    man.hash.addBytes(@typeName(Compression));
-    man.hash.addBytes(@tagName(compress.compression));
+    man.hash.addBytes(@typeName(Method));
+    man.hash.addBytes(@tagName(compress.method));
 
     if (compress.source_path != null) man.hash.addBytes(compress.source_path.?.path);
     man.hash.addBytes(compress.dir.path);
@@ -138,9 +118,11 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     compress.fd = try cwd.createFile(out_path, .{});
     defer compress.fd.close();
 
+    _ = try compress.fd.write(@embedFile("CompressHeader.zig"));
     try compress.fd.writer().print(Header, .{
         std.zig.fmtEscapes(builtin.zig_version_string),
-        @tagName(compress.compression),
+        @tagName(compress.method),
+        @tagName(compress.method),
     });
 
     try RecursiveDirIterator.run(
@@ -211,7 +193,7 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
             std.zig.fmtEscapes(fullpath),
         },
     );
-    switch (compress.compression) {
+    switch (compress.method) {
         .Deflate => {
             const content = try fd.readToEndAlloc(allocator, compress.max_file_size);
             var compressed = std.ArrayList(u8).init(allocator);
@@ -246,7 +228,7 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
             return error.TODO;
         },
         .XZ => {
-            const content = try compress_file_to_mem(fd, compress.compression);
+            const content = try compress_file_to_mem(fd, compress.method);
             try out_writer.print(
                 "\"{}\"",
                 .{
@@ -258,7 +240,7 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
     try compress.fd.writeAll(",\n}},\n");
 }
 
-pub fn compress_file_to_mem(file: std.fs.File, comp: Compression) ![]const u8 {
+pub fn compress_file_to_mem(file: std.fs.File, comp: Method) ![]const u8 {
     _ = file;
     var body: []const u8 = undefined;
     switch (comp) {

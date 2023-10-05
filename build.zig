@@ -80,12 +80,12 @@ pub fn build(b: *std.Build) void {
         .{ .path = "src/assets" },
         "assets",
     );
-    assets_compressed.compression = b.option(
-        CompressStep.Compression,
-        "compression",
-        "which compression to use in CompressStep",
+    assets_compressed.method = b.option(
+        CompressStep.Method,
+        "compress",
+        "which compression method to use in CompressStep",
     ) orelse .Raw;
-    server.step.dependOn(&assets_compressed.step);
+    // server.step.dependOn(&assets_compressed.step);
 
     const assets = b.addModule("assets", .{
         .source_file = .{
