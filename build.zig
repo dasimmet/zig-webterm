@@ -77,7 +77,7 @@ pub fn build(b: *std.Build) void {
     });
     const assets_compressed = CompressStep.init(
         b,
-        .{ .path = "src/assets" },
+        .{ .path = "assets" },
         "assets",
     );
     assets_compressed.method = b.option(
@@ -98,7 +98,7 @@ pub fn build(b: *std.Build) void {
 
     const install_server = b.addInstallArtifact(server, .{});
     const update_client = b.addWriteFiles();
-    update_client.addCopyFileToSource(client_exe.getEmittedBin(), "src/assets/client.wasm");
+    update_client.addCopyFileToSource(client_exe.getEmittedBin(), "assets/client.wasm");
 
     var client = b.step("client", "update client.wasm");
     client.dependOn(&update_client.step);
