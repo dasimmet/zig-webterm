@@ -21,10 +21,14 @@ pub fn on_request(r: zap.SimpleRequest) void {
 pub fn process_response(r: zap.SimpleRequest, path: []const u8, res: anytype) void {
     r.setStatus(.ok);
     if (res.method == .Deflate) {
-        std.log.debug("Content-Encoding: Deflate", .{});
         r.setHeader("Content-Encoding", "deflate") catch
             server_error(r, "500 - Set Content-Encoding Error");
     }
+    if (res.method == .Gzip) {
+        r.setHeader("Content-Encoding", "gzip") catch
+            server_error(r, "500 - Set Content-Encoding Error");
+    }
+    
     const extension = std.fs.path.extension(path);
     const mime = mime_map.get(extension) orelse "text/html";
 

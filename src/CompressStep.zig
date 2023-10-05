@@ -94,10 +94,11 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
         compress.output_file.path = try b.cache_root.join(allocator, &.{
             "o", &digest, "compress.zig",
         });
-        std.log.warn("HIT: {s}", .{compress.output_file.path.?});
+        // std.log.warn("HIT: {s}", .{compress.output_file.path.?});
         step.result_cached = true;
         return;
     }
+    step.result_cached = false;
     const digest = man.final();
 
     if (compress.source_path) |p| {
