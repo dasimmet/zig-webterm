@@ -5,6 +5,7 @@ pub const Method = enum {
     Gzip,
     Deflate,
     XZ,
+    ZStd,
 };
 pub fn Entry(comptime method: Method) type {
     return struct {

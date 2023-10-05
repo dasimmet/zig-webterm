@@ -1,6 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const RecursiveDirIterator = @import("RecursiveDirIterator.zig");
+pub const RecursiveDirIterator = @import("RecursiveDirIterator.zig");
+pub const CompressHeader = @import("CompressHeader.zig");
+pub const Method = CompressHeader.Method;
 
 step: std.build.Step,
 dir: std.build.LazyPath,
@@ -22,13 +24,6 @@ const Header =
     \\
 ;
 const Footer = "});\n";
-
-pub const Method = @import("CompressHeader.zig").Method;
-
-const CacheContext = struct {
-    compress: *CompressStep,
-    man: *std.Build.Cache.Manifest,
-};
 
 pub fn init(
     b: *std.Build,
@@ -53,6 +48,17 @@ pub fn init(
     return self;
 }
 
+fn hash(compress: *CompressStep, man: anytype) void {
+    man.hash.addBytes(@embedFile("CompressHeader.zig"));
+    man.hash.addBytes(@typeName(CompressStep));
+    man.hash.addBytes(Header);
+    man.hash.addBytes(@typeName(Method));
+    man.hash.addBytes(@tagName(compress.method));
+    if (compress.embed_full_path) man.hash.addBytes("embed_full_path");
+    if (compress.source_path != null) man.hash.addBytes(compress.source_path.?.path);
+    man.hash.addBytes(compress.dir.path);
+}
+
 fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     _ = prog_node;
     const b = step.owner;
@@ -72,15 +78,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     // but dont forget to quote this before committing
     // _ = try man.addFile(@src().file, compress.max_file_size);
 
-    man.hash.addBytes(@embedFile("CompressHeader.zig"));
-    man.hash.addBytes(@typeName(CompressStep));
-    man.hash.addBytes(Header);
-    man.hash.addBytes(@typeName(Method));
-    man.hash.addBytes(@tagName(compress.method));
-    if (compress.embed_full_path) man.hash.addBytes("embed_full_path");
-
-    if (compress.source_path != null) man.hash.addBytes(compress.source_path.?.path);
-    man.hash.addBytes(compress.dir.path);
+    compress.hash(&man);
 
     var cacheContext: CacheContext = .{
         .compress = compress,
@@ -139,6 +137,11 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     try compress.fd.writeAll(Footer);
     try step.writeManifest(&man);
 }
+
+const CacheContext = struct {
+    compress: *CompressStep,
+    man: *std.Build.Cache.Manifest,
+};
 
 fn cacheEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, ctx: *CacheContext) !void {
     const compress: *CompressStep = ctx.compress;
@@ -222,6 +225,8 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
         },
         .Raw => {
             const content = try fd.readToEndAlloc(allocator, compress.max_file_size);
+            defer allocator.free(content);
+
             try out_writer.print(
                 "\"{}\"",
                 .{
@@ -230,10 +235,19 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
             );
         },
         .Gzip => {
-            return error.TODO;
+            const content = try compress.file_to_mem(fullpath, compress.method);
+            defer allocator.free(content);
+
+            try out_writer.print(
+                "\"{}\"",
+                .{
+                    std.zig.fmtEscapes(content),
+                },
+            );
         },
-        .XZ => {
-            const content = try compress_file_to_mem(fd, compress.method);
+        .XZ, .ZStd => {
+            const content = try compress.file_to_mem(fullpath, compress.method);
+            defer allocator.free(content);
             try out_writer.print(
                 "\"{}\"",
                 .{
@@ -245,12 +259,40 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
     try compress.fd.writeAll(",\n}},\n");
 }
 
-pub fn compress_file_to_mem(file: std.fs.File, comp: Method) ![]const u8 {
-    _ = file;
+pub fn file_to_mem(compress: CompressStep, path: []const u8, comp: Method) ![]const u8 {
+    const allocator = compress.step.owner.allocator;
+
     var body: []const u8 = undefined;
     switch (comp) {
         .XZ => {
-            body = "TODO";
+            var proc = try std.ChildProcess.exec(.{
+                .allocator = allocator,
+                .argv = &[_][]const u8{"xz","-T0","-c","--",path},
+                .max_output_bytes = compress.max_file_size,
+            });
+            defer allocator.free(proc.stderr);
+
+            body = proc.stdout;
+        },
+        .Gzip => {
+            var proc = try std.ChildProcess.exec(.{
+                .allocator = allocator,
+                .argv = &[_][]const u8{"gzip","-9","-c","--",path},
+                .max_output_bytes = compress.max_file_size,
+            });
+            defer allocator.free(proc.stderr);
+
+            body = proc.stdout;
+        },
+        .ZStd => {
+            var proc = try std.ChildProcess.exec(.{
+                .allocator = allocator,
+                .argv = &[_][]const u8{"zstd","-9","-c","--",path},
+                .max_output_bytes = compress.max_file_size,
+            });
+            defer allocator.free(proc.stderr);
+
+            body = proc.stdout;
         },
         else => return error.TODO,
     }

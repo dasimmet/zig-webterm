@@ -1,5 +1,6 @@
 const std = @import("std");
 const CompressStep = @import("src/build/CompressStep.zig");
+const VendorDependency = @import("src/build/VendorDependency.zig");
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -69,53 +70,56 @@ pub fn build(b: *std.Build) void {
     client_exe.addModule("zig-js", zigjs.module("zig-js"));
     const install_client = b.addInstallArtifact(client_exe, .{});
 
-    const server = b.addExecutable(.{
-        .name = "zigtty",
-        .root_source_file = .{ .path = "src/server.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    const assets_compressed = CompressStep.init(
+    const compress = CompressStep.init(
         b,
         .{ .path = "assets" },
         "assets",
     );
-    assets_compressed.method = b.option(
+    compress.method = b.option(
         CompressStep.Method,
         "compress",
         "which compression method to use in CompressStep",
     ) orelse .Deflate;
-    // server.step.dependOn(&assets_compressed.step);
-
     const assets = b.addModule("assets", .{
         .source_file = .{
-            .generated = &assets_compressed.output_file,
+            .generated = &compress.output_file,
         },
     });
-    server.addModule("assets", assets);
-    server.addModule("zap", zap.module("zap"));
-    server.linkLibrary(zap.artifact("facil.io"));
 
-    const install_server = b.addInstallArtifact(server, .{});
+    const exe = b.addExecutable(.{
+        .name = "zigtty",
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe.addModule("assets", assets);
+    exe.addModule("zap", zap.module("zap"));
+    exe.linkLibrary(zap.artifact("facil.io"));
+    const install = b.addInstallArtifact(
+        exe,
+        .{},
+    );
+
     const update_client = b.addWriteFiles();
-    update_client.addCopyFileToSource(client_exe.getEmittedBin(), "assets/client.wasm");
-
+    update_client.addCopyFileToSource(
+        client_exe.getEmittedBin(),
+        "assets/client.wasm",
+    );
     var client = b.step("client", "update client.wasm");
     client.dependOn(&update_client.step);
 
-    var run_server = b.step("run", "run the server");
-    if (!no_update_client) server.step.dependOn(client);
-    const run_step = b.addRunArtifact(server);
+    var run = b.step("run", "run the server");
+    if (!no_update_client) exe.step.dependOn(client);
+    const run_step = b.addRunArtifact(exe);
     if (b.args) |args| {
         run_step.addArgs(args);
     }
-    run_server.dependOn(&run_step.step);
+    run.dependOn(&run_step.step);
 
-    var install = b.getInstallStep();
-    if (!no_update_client) install.dependOn(client);
-    install.dependOn(&install_client.step);
-    install.dependOn(&install_server.step);
-    // install.dependOn(run_server);
+    var install_step = b.getInstallStep();
+    install_step.dependOn(&install_client.step);
+    install_step.dependOn(&install.step);
 
     // Creates a step for unit testing.
     const main_tests = b.addTest(.{
@@ -130,20 +134,3 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&main_tests.step);
 }
-
-const VendorDependency = struct {
-    const Self = @This();
-    pub fn init(
-        b: *std.Build,
-        vendor: bool,
-        name: []const u8,
-        relative_build_root: []const u8,
-        comptime build_zig: type,
-        args: anytype,
-    ) *std.Build.Dependency {
-        return if (vendor)
-            b.anonymousDependency(relative_build_root, build_zig, args)
-        else
-            b.dependency(name, args);
-    }
-};

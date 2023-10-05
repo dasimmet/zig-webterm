@@ -1,7 +1,8 @@
 const std = @import("std");
 const zap = @import("zap");
 
-const Request = @import("Request.zig");
+pub const Request = @import("Request.zig");
+pub const Response = @import("Response.zig");
 const Websocket = @import("Websocket.zig");
 
 pub fn main() !void {
