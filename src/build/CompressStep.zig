@@ -49,6 +49,7 @@ pub fn init(
 }
 
 fn hash(compress: *CompressStep, man: *std.Build.Cache.Manifest) void {
+    man.hash.addBytes(compress.step.name);
     man.hash.addBytes(@embedFile("CompressHeader.zig"));
     man.hash.addBytes(compress.dir.path);
     man.hash.add(compress.method);

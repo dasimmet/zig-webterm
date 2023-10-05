@@ -134,38 +134,22 @@ fn on_open_websocket(context: ?*Context, handle: WebSockets.WsHandle) void {
             );
             return;
         };
-        // say hello
-        var buf: [2048]u8 = undefined;
-        const message = std.fmt.bufPrint(
-            &buf,
-            "{s} joined the chat with args {any}\n",
-            .{ ctx.userName, ctx.subscribeArgs },
-        ) catch @panic("bufPrint error");
 
-        std.log.info("new websocket opened: {s}", .{message});
+        std.log.info(
+            "new websocket opened: user: {s} args: {any}",
+            .{ ctx.userName, ctx.subscribeArgs },
+        );
     }
 }
 
 fn on_close_websocket(context: ?*Context, uuid: isize) void {
-    _ = uuid;
     if (context) |ctx| {
-        ctx.deinit();
-        // say goodbye
-        var buf: [128]u8 = undefined;
-        const message = std.fmt.bufPrint(
-            &buf,
-            "{s} left the chat.\r\n",
-            .{ctx.userName},
-        ) catch unreachable;
+        defer ctx.deinit();
 
-        // send notification to all others
-        WebsocketHandler.publish(.{
-            .channel = ctx.channel,
-            .message = message,
-        });
-        std.log.info("websocket closed: {s}", .{message});
+        std.log.info("websocket closed: {d} {s}", .{ uuid, ctx.userName });
     }
 }
+
 fn handle_websocket_message(
     context: ?*Context,
     handle: WebSockets.WsHandle,

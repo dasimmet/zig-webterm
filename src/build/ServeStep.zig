@@ -45,7 +45,8 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
         "step",
         step,
     );
-    _ = serve;
     var man = b.cache.obtain();
     defer man.deinit();
+    man.hash.addBytes(step.name);
+    man.hash.addBytes(serve.dir.path);
 }

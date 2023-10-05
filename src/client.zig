@@ -40,17 +40,23 @@ fn do_log(comptime fmt: []const u8, args: anytype) void {
     std.log.info(fmt, args);
 }
 
+pub fn eval_str(source: []const u8) u32 {
+    return eval(
+        @intFromPtr(source.ptr),
+        @as(usize, source.len),
+    );
+}
 export fn main() void {
     std.log.debug("DEBUG", .{});
     std.log.info("INFO", .{});
     std.log.warn("WARN", .{});
     std.log.err("ERR", .{});
     // std.log.info("{s}{s}", .{script,canvas_script});
-    const res = eval(@intFromPtr(script.ptr), @as(usize, script.len));
+    const res = eval_str(hello_world_script);
     std.log.info("This int is the result of the last eval statement: {}", .{res});
 }
 
-const script =
+const hello_world_script =
     \\let msg = "Hello World from zig-js ";
     \\
     \\function deref(ptr, len){
