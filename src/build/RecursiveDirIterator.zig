@@ -1,4 +1,4 @@
-// pass a function pointer to execute on each file found 
+// pass a function pointer to execute on each file found
 // recursively in a base directory path
 
 const std = @import("std");

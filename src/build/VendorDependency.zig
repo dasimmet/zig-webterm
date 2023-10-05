@@ -1,4 +1,4 @@
-// Creates either a local dependency or 
+// Creates either a local dependency or
 // one from the package manager depending on a bool switch
 // useful for working on changes in a local submodule,
 // then pinning them in build.zig.zon once committed.

@@ -6,11 +6,12 @@ pub const Method = CompressHeader.Method;
 
 step: std.build.Step,
 dir: std.build.LazyPath,
-output_file: std.Build.GeneratedFile,
-fd: std.fs.File = undefined,
 method: Method = .Raw,
 max_file_size: usize = 1073741824,
 embed_full_path: bool = false,
+
+fd: std.fs.File = undefined,
+output_file: std.Build.GeneratedFile,
 
 const CompressStep = @This();
 
@@ -47,14 +48,11 @@ pub fn init(
     return self;
 }
 
-fn hash(compress: *CompressStep, man: anytype) void {
+fn hash(compress: *CompressStep, man: *std.Build.Cache.Manifest) void {
     man.hash.addBytes(@embedFile("CompressHeader.zig"));
-    man.hash.addBytes(@typeName(CompressStep));
-    man.hash.addBytes(Header);
-    man.hash.addBytes(@typeName(Method));
-    man.hash.addBytes(@tagName(compress.method));
-    if (compress.embed_full_path) man.hash.addBytes("embed_full_path");
     man.hash.addBytes(compress.dir.path);
+    man.hash.add(compress.method);
+    man.hash.add(compress.embed_full_path);
 }
 
 fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
@@ -259,7 +257,7 @@ pub fn file_to_mem(compress: CompressStep, path: []const u8, comp: Method) ![]co
         .XZ => {
             var proc = try std.ChildProcess.exec(.{
                 .allocator = allocator,
-                .argv = &[_][]const u8{"xz","-T0","-c","--",path},
+                .argv = &[_][]const u8{ "xz", "-T0", "-c", "--", path },
                 .max_output_bytes = compress.max_file_size,
             });
             defer allocator.free(proc.stderr);
@@ -269,7 +267,7 @@ pub fn file_to_mem(compress: CompressStep, path: []const u8, comp: Method) ![]co
         .Gzip => {
             var proc = try std.ChildProcess.exec(.{
                 .allocator = allocator,
-                .argv = &[_][]const u8{"gzip","-9","-c","--",path},
+                .argv = &[_][]const u8{ "gzip", "-9", "-c", "--", path },
                 .max_output_bytes = compress.max_file_size,
             });
             defer allocator.free(proc.stderr);
@@ -279,7 +277,7 @@ pub fn file_to_mem(compress: CompressStep, path: []const u8, comp: Method) ![]co
         .ZStd => {
             var proc = try std.ChildProcess.exec(.{
                 .allocator = allocator,
-                .argv = &[_][]const u8{"zstd","-9","-c","--",path},
+                .argv = &[_][]const u8{ "zstd", "-9", "-c", "--", path },
                 .max_output_bytes = compress.max_file_size,
             });
             defer allocator.free(proc.stderr);

@@ -24,7 +24,7 @@ pub fn render(r: zap.SimpleRequest, path: []const u8, res: assets.EntryType) voi
 
     r.setHeader("Content-Type", mime) catch
         return server_error(r, "500 - Set Content-Type Error");
-    
+
     var buf: [64]u8 = undefined;
     const len = std.fmt.bufPrint(&buf, "{d}", .{res.body.len}) catch
         return server_error(r, "500 - Buffer Overflow");
