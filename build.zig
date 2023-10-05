@@ -84,7 +84,7 @@ pub fn build(b: *std.Build) void {
         CompressStep.Method,
         "compress",
         "which compression method to use in CompressStep",
-    ) orelse .Raw;
+    ) orelse .Deflate;
     // server.step.dependOn(&assets_compressed.step);
 
     const assets = b.addModule("assets", .{
