@@ -6,7 +6,6 @@ pub const Method = CompressHeader.Method;
 
 step: std.build.Step,
 dir: std.build.LazyPath,
-source_path: ?std.build.LazyPath = null,
 output_file: std.Build.GeneratedFile,
 fd: std.fs.File = undefined,
 method: Method = .Raw,
@@ -55,7 +54,6 @@ fn hash(compress: *CompressStep, man: anytype) void {
     man.hash.addBytes(@typeName(Method));
     man.hash.addBytes(@tagName(compress.method));
     if (compress.embed_full_path) man.hash.addBytes("embed_full_path");
-    if (compress.source_path != null) man.hash.addBytes(compress.source_path.?.path);
     man.hash.addBytes(compress.dir.path);
 }
 
@@ -91,24 +89,18 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
         &cacheContext,
     );
     if (try man.hit()) {
-        const digest = man.final();
-        compress.output_file.path = try b.cache_root.join(allocator, &.{
-            "o", &digest, "compress.zig",
-        });
         // std.log.warn("HIT: {s}", .{compress.output_file.path.?});
         step.result_cached = true;
-        return;
+    } else {
+        step.result_cached = false;
     }
-    step.result_cached = false;
     const digest = man.final();
 
-    if (compress.source_path) |p| {
-        compress.output_file.path = p.path;
-    } else {
-        compress.output_file.path = try b.cache_root.join(allocator, &.{
-            "o", &digest, "compress.zig",
-        });
-    }
+    compress.output_file.path = try b.cache_root.join(allocator, &.{
+        "o", &digest, "compress.zig",
+    });
+
+    if (step.result_cached) return;
     // std.log.debug("DIGEST: {s}", .{digest});
 
     const out_path = compress.output_file.getPath();
