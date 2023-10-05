@@ -108,10 +108,10 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
             "o", &digest, "compress.zig",
         });
     }
-    std.log.debug("DIGEST: {s}", .{digest});
+    // std.log.debug("DIGEST: {s}", .{digest});
 
     const out_path = compress.output_file.getPath();
-    std.log.debug("out: {s}", .{out_path});
+    // std.log.debug("out: {s}", .{out_path});
 
     const out_dir = std.fs.path.dirname(out_path).?;
     try cwd.makeDir(out_dir);

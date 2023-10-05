@@ -8,7 +8,7 @@ pub const Method = enum{
 };
 pub fn Entry(comptime method: Method) type {
     return struct {
-        source: []const u8,
+        source: ?[]const u8,
         body: []const u8,
         method: Method = method,
     };
