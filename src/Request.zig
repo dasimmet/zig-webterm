@@ -6,11 +6,9 @@ pub fn on_request(r: zap.SimpleRequest) void {
     if (r.path == null) {
         return server_error(r, "500 - Header Error");
     }
-    const path = std.mem.trimLeft(u8, r.path.?, "/");
+    var path = std.mem.trimLeft(u8, r.path.?, "/");
     if (std.mem.eql(u8, path, "")) {
-        const res = assets.map.get("index.html").?;
-        process_response(r, path, res);
-        return;
+        path = "index.html";
     }
     if (assets.map.get(path)) |res| {
         process_response(r, path, res);
@@ -31,8 +29,6 @@ pub fn process_response(r: zap.SimpleRequest, path: []const u8, res: anytype) vo
     const mime = mime_map.get(extension) orelse "text/html";
 
     r.setHeader("Content-Type", mime) catch
-        server_error(r, "500 - Set Content-Type Error");
-    r.setHeader("Content-Type", "text/html") catch
         server_error(r, "500 - Set Content-Type Error");
     r.sendBody(res.body) catch
         server_error(r, "500 - Sending Body Error");
