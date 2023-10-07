@@ -144,8 +144,8 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
             std.log.err("Error renaming File: {s}", .{dl_file});
             return err;
         };
+        try man.writeManifest();
     }
-    try man.writeManifest();
 }
 
 // fn randomHex(comptime size: usize, case: std.fmt.Case) []const u8 {
