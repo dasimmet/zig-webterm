@@ -22,12 +22,22 @@ const CompressStep = @This();
 const Header =
     \\pub const zig_version_string = "{}";
     \\pub const EntryType = Entry(.{s});
-    \\pub const map = std.ComptimeStringMap(
-    \\    EntryType,
-    \\    [_]EntryMap(.{s}){{
+    \\pub const EntryMapType = EntryMap(EntryType);
+    \\
+    \\pub const map_size = {d};
+    \\const EvalBranchQuota = map_size * EvalBranchQuotaMultiplier;
+    \\pub inline fn map() map_t {{
+    \\  return std.ComptimeStringMap(EntryType,map_internal);
+    \\}}
+    \\const map_t = blk: {{
+    \\  @setEvalBranchQuota(EvalBranchQuota);
+    \\  break :blk @TypeOf(std.ComptimeStringMap(
+    \\    EntryType,map_internal));
+    \\}};
+    \\const map_internal = [_]EntryMapType{{
     \\
 ;
-const Footer = "});\n";
+const Footer = "};\n";
 
 pub fn init(
     b: *std.Build,
@@ -125,7 +135,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     try compress.fd.writer().print(Header, .{
         std.zig.fmtEscapes(builtin.zig_version_string),
         @tagName(compress.method),
-        @tagName(compress.method),
+        ctx.prog_node.unprotected_estimated_total_items,
     });
 
     try RecursiveDirIterator.run(

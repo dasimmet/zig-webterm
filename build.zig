@@ -67,8 +67,8 @@ pub fn build(b: *std.Build) void {
 
     const compress = CompressStep.init(
         b,
-        // docs_dir,
-        .{ .path = "assets" },
+        docs_dir,
+        // .{ .path = "assets" },
         "assets",
     );
     compress.method = b.option(

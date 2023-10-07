@@ -11,7 +11,7 @@ pub fn on_request(r: zap.SimpleRequest) void {
     if (std.mem.eql(u8, path, "")) {
         path = "index.html";
     }
-    if (assets.map.get(path)) |res| {
+    if (assets.map().get(path)) |res| {
         Response.render(r, path, res);
         return;
     }

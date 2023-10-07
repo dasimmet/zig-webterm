@@ -1,8 +1,15 @@
-// a map of embedded files
+// a generated map of embedded files using string literals.
+// Usage: @import("assets").map()
+
 const std = @import("std");
-pub inline fn raiseComptimeQuota() void {
-    @setEvalBranchQuota(std.math.maxInt(u32));
-}
+
+// this will be multiplied by the number of entries
+// and passed to @setEvalBranchQuota to
+// allow importing programs to compile the map
+// this depends on  the implementation of ComptimeStringMap
+// and was optimized by trial and error
+// for zig version "0.12.0-dev.790+ad6f8e3a5"
+const EvalBranchQuotaMultiplier = 20;
 
 pub const Method = enum {
     Raw,
@@ -18,9 +25,9 @@ pub fn Entry(comptime method: Method) type {
         method: Method = method,
     };
 }
-pub fn EntryMap(comptime method: Method) type {
+pub fn EntryMap(comptime method: type) type {
     return struct {
         []const u8,
-        Entry(method),
+        method,
     };
 }

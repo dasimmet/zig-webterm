@@ -1,9 +1,13 @@
-const js = @import("zig-js");
-const std = @import("std");
+pub const zig_js = @import("zig-js");
+pub const std = @import("std");
+// an example wasm client that can run eval on the js side
 
-extern "imports" fn eval(ptr: usize, len: usize) u32;
-extern "imports" fn log_wasm(level: usize, ptr: usize, len: usize) void;
-extern "imports" fn panic_wasm() noreturn;
+// const _ = std.testing.refAllDecls(js);
+pub const ext = struct {
+    pub extern "imports" fn eval(ptr: usize, len: usize) u32;
+    pub extern "imports" fn log_wasm(level: usize, ptr: usize, len: usize) void;
+    pub extern "imports" fn panic_wasm() noreturn;
+};
 
 export fn tick(frame: u32, time: f32) void {
     _ = time;
@@ -20,7 +24,7 @@ var logBuf: [256]u8 = undefined;
 pub fn panic(msg: []const u8, trace: ?*std.builtin.StackTrace, code: ?usize) noreturn {
     _ = code;
     std.log.err("Panic: {s}\nTrace:\n{any}\n", .{ msg, trace });
-    panic_wasm();
+    ext.panic_wasm();
 }
 pub const std_options = struct {
     pub fn logFn(
@@ -32,7 +36,7 @@ pub const std_options = struct {
         _ = scope;
 
         const str = std.fmt.bufPrint(&logBuf, format, args) catch @panic("Log Buffer Overflow");
-        log_wasm(@intFromEnum(message_level), @intFromPtr(str.ptr), str.len);
+        ext.log_wasm(@intFromEnum(message_level), @intFromPtr(str.ptr), str.len);
     }
 };
 
@@ -41,7 +45,7 @@ fn do_log(comptime fmt: []const u8, args: anytype) void {
 }
 
 pub fn eval_str(source: []const u8) u32 {
-    return eval(
+    return ext.eval(
         @intFromPtr(source.ptr),
         @as(usize, source.len),
     );
