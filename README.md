@@ -31,3 +31,6 @@ const assets = b.addModule("assets", .{
     },
 });
 ```
+
+the result is a single static binary webserver serving
+precompressed responses from memory ;-D.

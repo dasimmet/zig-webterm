@@ -1,5 +1,6 @@
 const std = @import("std");
 const CompressStep = @import("src/build/CompressStep.zig");
+const DownloadStep = @import("src/build/DownloadStep.zig");
 const VendorDependency = @import("src/build/VendorDependency.zig");
 
 pub fn build(b: *std.Build) void {
@@ -56,6 +57,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     client_exe.rdynamic = true;
+    client_exe.addModule("zap", zap.module("zap"));
     client_exe.addModule("zig-js", zigjs.module("zig-js"));
     const install_client = b.addInstallArtifact(client_exe, .{});
     var docs_dir = client_exe.getEmittedDocs();
@@ -81,6 +83,13 @@ pub fn build(b: *std.Build) void {
             .generated = &compress.output_file,
         },
     });
+
+    const download = DownloadStep.init(
+        b,
+        .{ .path = "https://raw.githubusercontent.com/patrickmccallum/mimetype-io/master/src/mimeData.json" },
+        "download",
+    );
+    b.step("download", "download").dependOn(&download.step);
 
     const exe = b.addExecutable(.{
         .name = "zigtty",

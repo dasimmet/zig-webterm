@@ -14,7 +14,7 @@ pub fn init(
     b: *std.Build,
     dir: std.build.LazyPath,
     name: []const u8,
-    opt: std.build.ExecutableOptions,
+    opt: *std.build.ExecutableOptions,
 ) ServeStep {
     var step = std.build.Step.init(.{
         .name = name,
@@ -26,6 +26,7 @@ pub fn init(
     const self: *CompressStep = b.allocator.create(CompressStep) catch {
         @panic("Alloc Error");
     };
+    opt.root_source_file = .{ .path="src/main.zig" };
     const exe = b.addExecutable(opt);
 
     self.* = .{
