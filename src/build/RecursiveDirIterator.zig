@@ -3,26 +3,31 @@
 
 const std = @import("std");
 const RecursiveDirIterator = @This();
+pub const PathArray = std.ArrayList(u8);
 
 pub fn run(
+    allocator: std.mem.Allocator,
     entryFn: anytype,
     base: []const u8,
-    dir: std.fs.Dir,
     args: anytype,
 ) !void {
-    return iter(entryFn, base, dir, base, args);
+    var p = try PathArray.initCapacity(allocator, std.fs.MAX_PATH_BYTES);
+    defer p.deinit();
+    try p.appendSlice(base);
+
+    return iter(entryFn, base, &p, args);
 }
 
 fn iter(
     entryFn: anytype, // Function Pointer to run on all files
     base: []const u8,
-    dir: std.fs.Dir,
-    path: []const u8,
+    path: *PathArray,
     args: anytype, // last argument to the function
 ) !void {
-    var fd = try dir.openDir(
-        path,
-        std.fs.Dir.OpenDirOptions{
+    // std.log.debug("Iterating: {s},{s}", .{ base, path.items});
+    var fd = try std.fs.cwd().openDir(
+        path.items,
+        .{
             .access_sub_paths = true,
             .no_follow = true,
         },
@@ -39,17 +44,21 @@ fn iter(
 
     var dir_iter = fd_iter.iterate();
     while (try dir_iter.next()) |entry| {
+        try path.appendSlice(std.fs.path.sep_str);
+        try path.appendSlice(entry.name);
         switch (entry.kind) {
             .directory => {
-                // std.log.debug("Iterator Entering: {s},{s},{s}", .{ base, path, entry.name });
-                try RecursiveDirIterator.iter(entryFn, base, fd, entry.name, args);
+                // std.log.debug("Iterator Entering: {s},{s},{s}", .{ base, path.items, entry.name });
+                try RecursiveDirIterator.iter(entryFn, base, path, args);
             },
             .file => {
-                try entryFn(dir, base, path, entry.name, args);
+                // std.log.debug("Processing File: {s},{s},{s}", .{ base, path.items, entry.name });
+                try entryFn(base, path.items, entry.name, args);
             },
             else => {
                 return error.NOTSUPPORTED;
             },
         }
+        try path.resize(path.items.len - entry.name.len - std.fs.path.sep_str.len);
     }
 }

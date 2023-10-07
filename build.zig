@@ -58,9 +58,16 @@ pub fn build(b: *std.Build) void {
     client_exe.rdynamic = true;
     client_exe.addModule("zig-js", zigjs.module("zig-js"));
     const install_client = b.addInstallArtifact(client_exe, .{});
+    var docs_dir = client_exe.getEmittedDocs();
+    const docs = b.addInstallDirectory(.{
+        .source_dir = docs_dir,
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
 
     const compress = CompressStep.init(
         b,
+        // docs_dir,
         .{ .path = "assets" },
         "assets",
     );
@@ -81,6 +88,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    // const docs_dir = exe.getEmittedDocs().relative("index.html");
+    // const docs = b.addInstallBinFile(docs_dir, "docs.html");
 
     exe.addModule("assets", assets);
     exe.addModule("zap", zap.module("zap"));
@@ -109,6 +118,7 @@ pub fn build(b: *std.Build) void {
     var install_step = b.getInstallStep();
     install_step.dependOn(&install_client.step);
     install_step.dependOn(&install.step);
+    install_step.dependOn(&docs.step);
 
     // Creates a step for unit testing.
     const main_tests = b.addTest(.{

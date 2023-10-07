@@ -3,6 +3,10 @@ const builtin = @import("builtin");
 pub const RecursiveDirIterator = @import("RecursiveDirIterator.zig");
 pub const CompressHeader = @import("CompressHeader.zig");
 pub const Method = CompressHeader.Method;
+// This Step generates a "compress.zig" source code file
+// in "out_file" containing a CompressHeader.zig
+// as well as a ComptimeStringMap "map" with all
+// files in the directory tree below "dir".
 
 step: std.build.Step,
 dir: std.build.LazyPath,
@@ -42,22 +46,31 @@ pub fn init(
     };
     self.* = .{
         .step = step,
-        .dir = dir,
+        .dir = dir.dupe(b),
         .output_file = .{ .step = &self.step },
     };
+
+    self.dir.addStepDependencies(&self.step);
     return self;
 }
 
 fn hash(compress: *CompressStep, man: *std.Build.Cache.Manifest) void {
     man.hash.addBytes(compress.step.name);
-    man.hash.addBytes(@embedFile("CompressHeader.zig"));
-    man.hash.addBytes(compress.dir.path);
+    // the coolest hack when working on caching mechanisms is to include the source :-D
+    // but dont forget to quote this before committing
+    _ = man.addFile(
+        @src().file,
+        compress.max_file_size,
+    ) catch @panic("cannot include source file");
+    const compress_dir = compress.dir.getPath2(compress.step.owner, &compress.step);
+    man.hash.addBytes(compress_dir);
     man.hash.add(compress.method);
     man.hash.add(compress.embed_full_path);
+    man.hash.addBytes(@embedFile("CompressHeader.zig"));
+    man.hash.addBytes(Header);
 }
 
 fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
-    _ = prog_node;
     const b = step.owner;
     const allocator = b.allocator;
 
@@ -71,21 +84,18 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     defer man.deinit();
     const cwd = std.fs.cwd();
 
-    // the coolest hack when working on caching mechanisms is to include the source :-D
-    // but dont forget to quote this before committing
-    // _ = try man.addFile(@src().file, compress.max_file_size);
-
     compress.hash(&man);
 
-    var cacheContext: CacheContext = .{
+    var ctx: Context = .{
         .compress = compress,
         .man = &man,
+        .prog_node = prog_node,
     };
     try RecursiveDirIterator.run(
+        allocator,
         cacheEntry,
-        compress.dir.path,
-        cwd,
-        &cacheContext,
+        compress.dir.getPath2(b, step),
+        &ctx,
     );
     if (try man.hit()) {
         // std.log.warn("HIT: {s}", .{compress.output_file.path.?});
@@ -119,62 +129,42 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     });
 
     try RecursiveDirIterator.run(
+        allocator,
         processEntry,
-        compress.dir.path,
-        cwd,
-        compress,
+        compress.dir.getPath2(b, &compress.step),
+        &ctx,
     );
 
     try compress.fd.writeAll(Footer);
     try step.writeManifest(&man);
 }
 
-const CacheContext = struct {
+const Context = struct {
     compress: *CompressStep,
+    prog_node: *std.Progress.Node,
     man: *std.Build.Cache.Manifest,
 };
 
-fn cacheEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, ctx: *CacheContext) !void {
+fn cacheEntry(base: []const u8, entry_path: []const u8, entry_name: []const u8, ctx: *Context) !void {
+    _ = base;
+    _ = entry_name;
+    ctx.prog_node.setEstimatedTotalItems(ctx.prog_node.unprotected_estimated_total_items + 1);
     const compress: *CompressStep = ctx.compress;
-    const allocator = compress.step.owner.allocator;
-    const realpath = try d.realpathAlloc(
-        allocator,
-        ".",
-    );
-    defer allocator.free(realpath);
-    var base_buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const real_base = try std.fs.realpath(base, &base_buffer);
-    _ = real_base;
 
-    const fullpath = try std.fs.path.join(
-        allocator,
-        &[_][]const u8{ realpath, p, e },
-    );
-    defer allocator.free(fullpath);
-    ctx.man.hash.addBytes(fullpath);
-    _ = try ctx.man.addFile(fullpath, compress.max_file_size);
+    ctx.man.hash.addBytes(entry_path);
+    _ = try ctx.man.addFile(entry_path, compress.max_file_size);
 }
 
-fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, compress: *CompressStep) !void {
+fn processEntry(base: []const u8, entry_path: []const u8, entry_name: []const u8, ctx: *Context) !void {
+    _ = entry_name;
+    const compress = ctx.compress;
     const out_writer = compress.fd.writer();
     const allocator = compress.step.owner.allocator;
-    const realpath = try d.realpathAlloc(
-        allocator,
-        ".",
-    );
-    defer allocator.free(realpath);
-    var base_buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
-    const real_base = try std.fs.realpath(base, &base_buffer);
 
-    const fullpath = try std.fs.path.join(
-        allocator,
-        &[_][]const u8{ realpath, p, e },
-    );
-    defer allocator.free(fullpath);
-    const relpath = fullpath[real_base.len + 1 ..];
+    const relpath = entry_path[base.len + 1 ..];
 
     const fd = try std.fs.openFileAbsolute(
-        fullpath,
+        entry_path,
         .{},
     );
     defer fd.close();
@@ -188,7 +178,7 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
     if (compress.embed_full_path) try out_writer.print(
         ".full_path=\"{}\",\n",
         .{
-            std.zig.fmtEscapes(fullpath),
+            std.zig.fmtEscapes(entry_path),
         },
     );
     try out_writer.writeAll(".body=");
@@ -225,19 +215,8 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
                 },
             );
         },
-        .Gzip => {
-            const content = try compress.file_to_mem(fullpath, compress.method);
-            defer allocator.free(content);
-
-            try out_writer.print(
-                "\"{}\"",
-                .{
-                    std.zig.fmtEscapes(content),
-                },
-            );
-        },
-        .XZ, .ZStd => {
-            const content = try compress.file_to_mem(fullpath, compress.method);
+        .Gzip, .XZ, .ZStd => {
+            const content = try compress.file_to_mem(entry_path, compress.method);
             defer allocator.free(content);
             try out_writer.print(
                 "\"{}\"",
@@ -248,6 +227,7 @@ fn processEntry(d: std.fs.Dir, base: []const u8, p: []const u8, e: []const u8, c
         },
     }
     try compress.fd.writeAll(",\n}},\n");
+    ctx.prog_node.completeOne();
 }
 
 pub fn file_to_mem(compress: CompressStep, path: []const u8, comp: Method) ![]const u8 {

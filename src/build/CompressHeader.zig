@@ -1,5 +1,9 @@
 // a map of embedded files
 const std = @import("std");
+pub inline fn raiseComptimeQuota() void {
+    @setEvalBranchQuota(std.math.maxInt(u32));
+}
+
 pub const Method = enum {
     Raw,
     Gzip,
