@@ -51,8 +51,11 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     var man = b.cache.obtain();
     defer man.deinit();
 
-    _ = try man.addFile(@src().file, self.max_file_size);
-    man.hash.addBytes(step.name);
+    // _ = try man.addFile(
+    //     @src().file,
+    //     self.max_file_size,
+    // );
+    // man.hash.addBytes(step.name);
     man.hash.addBytes(url);
 
     const basename = std.fs.path.basename(url);
@@ -60,7 +63,6 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
 
     self.step.result_cached = try man.hit();
     const digest = man.final();
-
 
     self.output_dir.path = try b.global_cache_root.join(allocator, &.{
         "o", &digest,

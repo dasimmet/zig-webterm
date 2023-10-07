@@ -1,6 +1,5 @@
 const std = @import("std");
-const CompressStep = @import("src/build/CompressStep.zig");
-const DownloadStep = @import("src/build/DownloadStep.zig");
+const MyBuild = @import("src/build/Build.zig");
 const VendorDependency = @import("src/build/VendorDependency.zig");
 
 pub fn build(b: *std.Build) void {
@@ -42,10 +41,10 @@ pub fn build(b: *std.Build) void {
         },
     );
 
-    const CompressStepModule = b.addModule("CompressStep", .{
-        .source_file = .{ .path = "src/build/CompressStep.zig" },
+    const MyBuildModule = b.addModule("MyBuild", .{
+        .source_file = .{ .path = "src/build/Build.zig" },
     });
-    _ = CompressStepModule;
+    _ = MyBuildModule;
 
     const client_exe = b.addSharedLibrary(.{
         .name = "client",
@@ -67,14 +66,14 @@ pub fn build(b: *std.Build) void {
         .install_subdir = "docs",
     });
 
-    const compress = CompressStep.init(
+    const compress = MyBuild.Compress.init(
         b,
         docs_dir,
         // .{ .path = "assets" },
         "assets",
     );
     compress.method = b.option(
-        CompressStep.Method,
+        MyBuild.Compress.Method,
         "compress",
         "which compression method to use in CompressStep",
     ) orelse .Deflate;
@@ -84,12 +83,14 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    const download = DownloadStep.init(
+    const mimetypes = MyBuild.Download.init(
         b,
-        .{ .path = "https://raw.githubusercontent.com/patrickmccallum/mimetype-io/master/src/mimeData.json" },
-        "download",
+        .{
+            .path = "https://raw.githubusercontent.com/patrickmccallum/mimetype-io/9ada41c2e86131d1acc9c8d03d6e4e196a075932/src/mimeData.json",
+        },
+        "mimetypes",
     );
-    b.step("download", "download").dependOn(&download.step);
+    b.step("download", "download").dependOn(&mimetypes.step);
 
     const exe = b.addExecutable(.{
         .name = "zigtty",

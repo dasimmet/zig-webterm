@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-pub const CompressStep = @import("CompressStep.zig");
+pub const CompressStep = @import("Compress.zig");
 
 step: std.build.Step,
 dir: std.build.LazyPath,

@@ -1,7 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
-pub const RecursiveDirIterator = @import("RecursiveDirIterator.zig");
-pub const CompressHeader = @import("CompressHeader.zig");
+pub const RecursiveDirIterator = @import("../RecursiveDirIterator.zig");
+pub const CompressHeader = @import("../CompressHeader.zig");
+pub const CompressHeader_literal = @embedFile("../CompressHeader.zig");
+
 pub const Method = CompressHeader.Method;
 // This Step generates a "compress.zig" source code file
 // in "out_file" containing a CompressHeader.zig
@@ -68,15 +70,16 @@ fn hash(compress: *CompressStep, man: *std.Build.Cache.Manifest) void {
     man.hash.addBytes(compress.step.name);
     // the coolest hack when working on caching mechanisms is to include the source :-D
     // but dont forget to quote this before committing
-    _ = man.addFile(
-        @src().file,
-        compress.max_file_size,
-    ) catch @panic("cannot include source file");
+    // _ = man.addFile(
+    //     @src().file,
+    //     compress.max_file_size,
+    // ) catch @panic("cannot include source file");
+
     const compress_dir = compress.dir.getPath2(compress.step.owner, &compress.step);
     man.hash.addBytes(compress_dir);
     man.hash.add(compress.method);
     man.hash.add(compress.embed_full_path);
-    man.hash.addBytes(@embedFile("CompressHeader.zig"));
+    man.hash.addBytes(CompressHeader_literal);
     man.hash.addBytes(Header);
 }
 
@@ -131,7 +134,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     compress.fd = try cwd.createFile(out_path, .{});
     defer compress.fd.close();
 
-    _ = try compress.fd.write(@embedFile("CompressHeader.zig"));
+    _ = try compress.fd.write(@embedFile("../CompressHeader.zig"));
     try compress.fd.writer().print(Header, .{
         std.zig.fmtEscapes(builtin.zig_version_string),
         @tagName(compress.method),

@@ -1,5 +1,6 @@
 pub const zig_js = @import("zig-js");
 pub const std = @import("std");
+pub const MyBuild = @import("build/Build.zig");
 // an example wasm client that can run eval on the js side
 
 // const _ = std.testing.refAllDecls(js);
