@@ -1,11 +1,11 @@
 const std = @import("std");
 const zap = @import("zap");
 const assets = @import("assets");
-const Mimetypes = @import("mimetypes");
 
 const Response = @This();
 
 pub fn render(r: zap.SimpleRequest, path: []const u8, res: assets.EntryType) void {
+    _ = path;
     r.setStatus(.ok);
     if (res.method == .Deflate) {
         r.setHeader("Content-Encoding", "deflate") catch
@@ -19,21 +19,7 @@ pub fn render(r: zap.SimpleRequest, path: []const u8, res: assets.EntryType) voi
         r.setHeader("Content-Encoding", "zstd") catch
             server_error(r, "500 - Set Content-Encoding Error");
     }
-
-    const extension = std.fs.path.extension(path);
-    @setEvalBranchQuota(5000);
-    var mime: ?[]const u8 = null;
-    inline for (Mimetypes.data) |it| outer: {
-        inline for (it.types) |t| {
-            if (std.mem.eql(u8, extension, t)) {
-                mime = it.name;
-                break :outer;
-            }
-        }
-    }
-    if (mime == null) mime = "application/octet-stream";
-
-    r.setHeader("Content-Type", mime.?) catch
+    r.setHeader("Content-Type", res.mimetype) catch
         return server_error(r, "500 - Set Content-Type Error");
 
     var buf: [64]u8 = undefined;
@@ -51,14 +37,3 @@ pub fn server_error(r: zap.SimpleRequest, msg: []const u8) void {
     r.sendBody(msg) catch return;
     r.sendBody("</h1></body></html>") catch return;
 }
-
-pub const mime_map = std.ComptimeStringMap([]const u8, [_]struct {
-    []const u8,
-    []const u8,
-}{
-    .{ "wasm", "application/wasm" },
-    .{ "js", "text/javascript" },
-    .{ "css", "text/css" },
-    .{ "html", "text/html" },
-    .{ "svg", "image/svg+xml" },
-});

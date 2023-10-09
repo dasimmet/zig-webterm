@@ -1,7 +1,5 @@
 const std = @import("std");
 const MyBuild = @import("src/build/Build.zig");
-const zon = @import("build.zig.zon");
-const d = zon.dependencies;
 const VendorDependency = @import("src/build/VendorDependency.zig");
 
 pub fn build(b: *std.Build) void {
@@ -71,8 +69,7 @@ pub fn build(b: *std.Build) void {
     update_mime.addCopyFileToSource(.{ .generated = &mime_zig.output_file }, "src/build/gen/mimeData.json.zig");
     const mime_step = b.step("mimetypes", "Download and convert the mime data");
     mime_step.dependOn(&update_mime.step);
-
-    const mime_mod = mime_zig.module(b);
+    // const mime_mod = mime_zig.module(b);
 
     const client_exe = b.addSharedLibrary(.{
         .name = "client",
@@ -118,7 +115,6 @@ pub fn build(b: *std.Build) void {
     // const docs_dir = exe.getEmittedDocs().relative("index.html");
     // const docs = b.addInstallBinFile(docs_dir, "docs.html");
 
-    exe.addModule("mimetypes", mime_mod);
     exe.addModule("assets", compress.assets(b));
     exe.addModule("zap", zap.module("zap"));
     exe.linkLibrary(zap.artifact("facil.io"));
