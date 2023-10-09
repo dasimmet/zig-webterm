@@ -25,19 +25,31 @@ pub fn json2Zon(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
         .array => |v| {
             _ = try writer.write(".{\n");
             for (v.items) |entry| {
-                try json2Zon(entry, writer, indent+1);
+                for (0..indent + 1) |_| {
+                    _ = try writer.write("  ");
+                }
+                try json2Zon(entry, writer, indent + 1);
                 _ = try writer.write(",\n");
             }
-            _ = try writer.write("}\n");
+            for (0..indent) |_| {
+                _ = try writer.write("  ");
+            }
+            _ = try writer.write("}");
         },
         .object => |v| {
             // array_list.ArrayListAligned(json.dynamic.Value,null)
             _ = try writer.write(".{\n");
             var iter = v.iterator();
             while (iter.next()) |entry| {
+                for (0..indent + 1) |_| {
+                    _ = try writer.write("  ");
+                }
                 _ = try writer.print(".@\"{}\"=", .{std.zig.fmtEscapes(entry.key_ptr.*)});
-                try json2Zon(entry.value_ptr.*, writer, indent+1);
+                try json2Zon(entry.value_ptr.*, writer, indent + 1);
                 _ = try writer.write(",\n");
+            }
+            for (0..indent) |_| {
+                _ = try writer.write("  ");
             }
             _ = try writer.write("}");
         },
