@@ -1,8 +1,12 @@
 const std = @import("std");
 
-var buf: [4096]u8 = undefined;
+pub fn write(Jvalue: std.json.Value, writer: anytype) !void {
+    try writer.writeAll("pub const data=");
+    try convert(Jvalue, writer, 0);
+    try writer.writeAll(";\n");
+}
 
-pub fn json2Zon(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
+pub fn convert(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
     switch (Jvalue) {
         .null => {
             _ = try writer.write("null");
@@ -28,7 +32,7 @@ pub fn json2Zon(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
                 for (0..indent + 1) |_| {
                     _ = try writer.write("  ");
                 }
-                try json2Zon(entry, writer, indent + 1);
+                try convert(entry, writer, indent + 1);
                 _ = try writer.write(",\n");
             }
             for (0..indent) |_| {
@@ -45,7 +49,7 @@ pub fn json2Zon(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
                     _ = try writer.write("  ");
                 }
                 _ = try writer.print(".@\"{}\"=", .{std.zig.fmtEscapes(entry.key_ptr.*)});
-                try json2Zon(entry.value_ptr.*, writer, indent + 1);
+                try convert(entry.value_ptr.*, writer, indent + 1);
                 _ = try writer.write(",\n");
             }
             for (0..indent) |_| {
@@ -54,18 +58,4 @@ pub fn json2Zon(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
             _ = try writer.write("}");
         },
     }
-}
-
-inline fn parseJsonComptime(comptime p: []const u8) std.json.Value {
-    var buf_alloc = std.heap.FixedBufferAllocator.init(&buf);
-    const allocator = buf_alloc.allocator();
-
-    const json = @embedFile(p);
-
-    return std.json.parseFromSliceLeaky(
-        std.json.Value,
-        allocator,
-        json,
-        .{},
-    ) catch @panic("WOLOLO");
 }

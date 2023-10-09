@@ -34,3 +34,10 @@ const assets = b.addModule("assets", .{
 
 the result is a single static binary webserver serving
 precompressed responses from memory ;-D.
+
+# Download Step
+
+The module also has a `Download` Build step to fetch a file using the system
+`curl` command.
+It can optionally convert a json response to a zig module for import and
+comtime evaluation.

@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
-pub const ParseJsonHeader = @import("../ParseJsonHeader.zig");
-pub const ParseJsonHeaderLiteral = @embedFile("../ParseJsonHeader.zig");
+pub const JsonToZon = @import("../JsonToZon.zig");
+pub const JsonToZonLiteral = @embedFile("../JsonToZon.zig");
 
 step: std.build.Step,
 url: std.build.LazyPath,
@@ -66,7 +66,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     // man.hash.addBytes(step.name);
     man.hash.addBytes(url);
     man.hash.addBytes(@tagName(self.json_module));
-    man.hash.addBytes(ParseJsonHeaderLiteral);
+    man.hash.addBytes(JsonToZonLiteral);
 
     const basename = std.fs.path.basename(url);
     // std.log.warn("Basename: {s}", .{basename});
@@ -193,13 +193,10 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
         );
         defer parsed.deinit();
 
-        try json_file.writeAll("pub const data=");
-        try ParseJsonHeader.json2Zon(
+        try JsonToZon.write(
             parsed.value,
-            json_file.writer(),
-            0
+            json_file.writer()
         );
-        try json_file.writeAll(";");
 
         // _ = try json_file.write(ParseJsonHeader);
 
