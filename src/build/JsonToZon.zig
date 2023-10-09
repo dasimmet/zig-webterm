@@ -1,12 +1,22 @@
+//! helpers writing a `.zig` file to a writer from a `std.json.Value`
+//!
+
 const std = @import("std");
 
-pub fn write(Jvalue: std.json.Value, writer: anytype) !void {
+/// iteration starter with depth 0 and to write header and footer
+pub fn write(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
     try writer.writeAll("pub const data=");
-    try convert(Jvalue, writer, 0);
+    try convert(Jvalue, writer, indent, 0);
     try writer.writeAll(";\n");
 }
 
-pub fn convert(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
+// actual recursive writing function for json values
+pub fn convert(
+    Jvalue: std.json.Value,
+    writer: anytype,
+    indent: usize,
+    depth: usize,
+) !void {
     switch (Jvalue) {
         .null => {
             _ = try writer.write("null");
@@ -29,14 +39,19 @@ pub fn convert(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
         .array => |v| {
             _ = try writer.write(".{\n");
             for (v.items) |entry| {
-                for (0..indent + 1) |_| {
-                    _ = try writer.write("  ");
+                for (0..(depth + 1) * indent) |_| {
+                    _ = try writer.write(" ");
                 }
-                try convert(entry, writer, indent + 1);
+                try convert(
+                    entry,
+                    writer,
+                    indent,
+                    depth + 1,
+                );
                 _ = try writer.write(",\n");
             }
-            for (0..indent) |_| {
-                _ = try writer.write("  ");
+            for (0..(indent * depth)) |_| {
+                _ = try writer.write(" ");
             }
             _ = try writer.write("}");
         },
@@ -46,14 +61,19 @@ pub fn convert(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
             var iter = v.iterator();
             while (iter.next()) |entry| {
                 for (0..indent + 1) |_| {
-                    _ = try writer.write("  ");
+                    _ = try writer.write(" ");
                 }
                 _ = try writer.print(".{}=", .{std.zig.fmtId(entry.key_ptr.*)});
-                try convert(entry.value_ptr.*, writer, indent + 1);
+                try convert(
+                    entry.value_ptr.*,
+                    writer,
+                    indent,
+                    depth + 1,
+                );
                 _ = try writer.write(",\n");
             }
-            for (0..indent) |_| {
-                _ = try writer.write("  ");
+            for (0..(indent * depth)) |_| {
+                _ = try writer.write(" ");
             }
             _ = try writer.write("}");
         },

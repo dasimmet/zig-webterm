@@ -18,7 +18,7 @@ pub const Method = CompressHeader.Method;
 step: std.build.Step,
 dir: std.build.LazyPath,
 method: Method = .Raw,
-max_file_size: usize = 1073741824,
+max_file_size: usize = 1073741824, // 1GB
 embed_full_path: bool = false,
 
 fd: std.fs.File = undefined,
@@ -197,18 +197,18 @@ fn processEntry(base: []const u8, entry_path: []const u8, entry_name: []const u8
     defer fd.close();
 
     try out_writer.print(
-        ".{{\"{}\",\n.{{\n",
+        ".{{\"{}\",.{{\n",
         .{
             std.zig.fmtEscapes(relpath),
         },
     );
     if (compress.embed_full_path) try out_writer.print(
-        ".full_path=\"{}\",\n",
+        "  .full_path=\"{}\",\n",
         .{
             std.zig.fmtEscapes(entry_path),
         },
     );
-    try out_writer.writeAll(".body=");
+    try out_writer.writeAll("  .body=");
     switch (compress.method) {
         .Deflate => {
             const content = try fd.readToEndAlloc(allocator, compress.max_file_size);

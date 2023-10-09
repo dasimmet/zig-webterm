@@ -9,7 +9,7 @@ step: std.build.Step,
 url: std.build.LazyPath,
 output_dir: std.Build.GeneratedFile,
 output_file: std.Build.GeneratedFile,
-max_file_size: usize = 1073741824,
+max_file_size: usize = 1073741824, // 1GB
 
 const Self = DownloadStep;
 

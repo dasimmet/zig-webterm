@@ -133,6 +133,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     try JsonToZon.write(
         parsed.value,
         zig_file.writer(),
+        4,
     );
 }
 
