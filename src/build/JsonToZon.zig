@@ -37,7 +37,11 @@ pub fn convert(
             try writer.print("\"{}\"", .{std.zig.fmtEscapes(v)});
         },
         .array => |v| {
-            _ = try writer.write(".{\n");
+            if (indent != 0) {
+                _ = try writer.write(".{\n");
+            } else {
+                _ = try writer.write(".{");
+            }
             for (v.items) |entry| {
                 for (0..(depth + 1) * indent) |_| {
                     _ = try writer.write(" ");
@@ -48,7 +52,11 @@ pub fn convert(
                     indent,
                     depth + 1,
                 );
-                _ = try writer.write(",\n");
+                if (indent != 0) {
+                    _ = try writer.write(",\n");
+                } else {
+                    _ = try writer.write(",");
+                }
             }
             for (0..(indent * depth)) |_| {
                 _ = try writer.write(" ");
@@ -57,7 +65,12 @@ pub fn convert(
         },
         .object => |v| {
             // array_list.ArrayListAligned(json.dynamic.Value,null)
-            _ = try writer.write(".{\n");
+
+            if (indent != 0) {
+                _ = try writer.write(".{\n");
+            } else {
+                _ = try writer.write(".{");
+            }
             var iter = v.iterator();
             while (iter.next()) |entry| {
                 for (0..indent + 1) |_| {
@@ -70,7 +83,11 @@ pub fn convert(
                     indent,
                     depth + 1,
                 );
-                _ = try writer.write(",\n");
+                if (indent != 0) {
+                    _ = try writer.write(",\n");
+                } else {
+                    _ = try writer.write(",");
+                }
             }
             for (0..(indent * depth)) |_| {
                 _ = try writer.write(" ");

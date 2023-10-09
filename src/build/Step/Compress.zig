@@ -8,6 +8,7 @@ const builtin = @import("builtin");
 pub const RecursiveDirIterator = @import("../RecursiveDirIterator.zig");
 pub const CompressHeader = @import("../CompressHeader.zig");
 pub const CompressHeader_literal = @embedFile("../CompressHeader.zig");
+const MimeData = @import("../gen/mimeData.json.zig");
 
 pub const Method = CompressHeader.Method;
 // This Step generates a "compress.zig" source code file
@@ -20,6 +21,7 @@ dir: std.build.LazyPath,
 method: Method = .Raw,
 max_file_size: usize = 1073741824, // 1GB
 embed_full_path: bool = false,
+detect_mime: bool = true,
 
 fd: std.fs.File = undefined,
 output_file: std.Build.GeneratedFile,
@@ -93,6 +95,7 @@ fn hash(compress: *CompressStep, man: *std.Build.Cache.Manifest) void {
     man.hash.addBytes(compress_dir);
     man.hash.add(compress.method);
     man.hash.add(compress.embed_full_path);
+    man.hash.add(compress.detect_mime);
     man.hash.addBytes(CompressHeader_literal);
     man.hash.addBytes(Header);
 }
@@ -208,6 +211,24 @@ fn processEntry(base: []const u8, entry_path: []const u8, entry_name: []const u8
             std.zig.fmtEscapes(entry_path),
         },
     );
+    if (compress.detect_mime) {
+        @setEvalBranchQuota(2000);
+        // @compileLog(MimeData.data.len);
+        const extension = std.fs.path.extension(entry_path);
+        inline for (MimeData.data) |it| outer: {
+            inline for (it.types) |t| {
+                if (std.mem.eql(u8, extension, t)) {
+                    try out_writer.print(
+                        "  .mimetype=\"{}\",\n",
+                        .{
+                            std.zig.fmtEscapes(it.name),
+                        },
+                    );
+                    break :outer;
+                }
+            }
+        }
+    }
     try out_writer.writeAll("  .body=");
     switch (compress.method) {
         .Deflate => {

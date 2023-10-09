@@ -67,6 +67,11 @@ pub fn build(b: *std.Build) void {
         .{ .generated = &mime_json.output_file },
         "jzon",
     );
+    const update_mime = b.addWriteFiles();
+    update_mime.addCopyFileToSource(.{ .generated = &mime_zig.output_file }, "src/build/gen/mimeData.json.zig");
+    const mime_step = b.step("mimetypes", "Download and convert the mime data");
+    mime_step.dependOn(&update_mime.step);
+
     const mime_mod = mime_zig.module(b);
 
     const client_exe = b.addSharedLibrary(.{

@@ -12,6 +12,7 @@ step: std.build.Step,
 source_file: std.build.LazyPath,
 output_file: std.Build.GeneratedFile,
 max_file_size: usize = 1073741824,
+indent: usize = 2,
 
 // create a step to convert source_file to output_file
 pub fn init(
@@ -133,7 +134,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     try JsonToZon.write(
         parsed.value,
         zig_file.writer(),
-        4,
+        self.indent,
     );
 }
 

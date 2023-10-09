@@ -23,6 +23,7 @@ pub fn Entry(comptime method: Method) type {
         full_path: ?[]const u8 = null,
         body: []const u8,
         method: Method = method,
+        mimetype: []const u8 = "application/octet-stream",
     };
 }
 pub fn EntryMap(comptime method: type) type {
