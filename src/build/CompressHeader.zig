@@ -1,5 +1,5 @@
-// a generated map of embedded files using string literals.
-// Usage: @import("assets").map()
+//! a generated map of embedded files using string literals.
+//! Usage: @import("assets").map()
 
 const std = @import("std");
 

@@ -13,6 +13,7 @@ source_file: std.build.LazyPath,
 output_file: std.Build.GeneratedFile,
 max_file_size: usize = 1073741824,
 
+// create a step to convert source_file to output_file
 pub fn init(
     b: *std.Build,
     source_file: std.build.LazyPath,
@@ -42,6 +43,7 @@ pub fn init(
     return self;
 }
 
+// run the build step
 fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     _ = prog_node;
     const b = step.owner;
@@ -134,6 +136,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     );
 }
 
+/// returns a `std.Build.Module` of `output_file`
 pub fn module(self: *Self, b: *std.Build) *std.Build.Module {
     return b.addModule(self.step.name, .{
         .source_file = .{
