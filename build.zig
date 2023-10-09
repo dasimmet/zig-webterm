@@ -18,6 +18,7 @@ pub fn build(b: *std.Build) void {
         "no-update-client",
         "",
     ) orelse false;
+    _ = no_update_client;
 
     const zigjs = VendorDependency.init(
         b,
@@ -130,7 +131,7 @@ pub fn build(b: *std.Build) void {
     client.dependOn(&update_client.step);
 
     var run = b.step("run", "run the server");
-    if (!no_update_client) exe.step.dependOn(client);
+    // if (!no_update_client) exe.step.dependOn(client);
     const run_step = b.addRunArtifact(exe);
     if (b.args) |args| {
         run_step.addArgs(args);
