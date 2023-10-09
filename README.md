@@ -10,6 +10,8 @@ steps [54/56] zig build-exe zigtty Debug native... LLVM Emit Object...
 Open http://127.0.0.1:3000 in your browser
 ```
 
+## Compress step
+
 it holds a [src/build/CompressStep.zig](src/build/CompressStep.zig) to
 bundle the responses from [assets/](assets/)
 into a `std.ComptimeStringMap` zig source code file.
@@ -22,7 +24,7 @@ const assets_compressed = CompressStep.init(
     .{ .path = "src/assets" },
     "assets",
 );
-assets_compressed.compression = .Raw;
+assets_compressed.compression = .Deflate;
 server.step.dependOn(&assets_compressed.step);
 
 const assets = b.addModule("assets", .{
@@ -38,17 +40,27 @@ precompressed responses from memory ;-D.
 the default example embeds the static built documentation of the 
 build steps and serves them.
 
-# Download Step
+## Download Step
 
-The module also has a `Download` Build step to fetch a file using the system
-`curl` command.
+The module also has a `Download` Build step to fetch a file using the `curl` system command.
+Maybe later this will be replaced by standard library code.
 
-# JZon Step
+The input `url` of `Download` accepts a LazyPath, but expects a URL to pass into curl.
+The `output_file` is a GeneratedFile path to the downloaded file in zig's cache.
+
+## JZon Step
 
 the JZon step converts a `json` file from a LazyPath into a `.zig` file
-with a `.zon`-like syntax.
-It can then be imported as a module in subsequent steps.
-the example fetches a
+with a `.zon`-like syntax, but assigned to a single identifier `data`:
+
+```
+pub const data = <converted json data here>
+```
+
+It can then be imported as a module in subsequent steps and processed at comptime.
+The example fetches a
 [list of mimetypes](https://github.com/patrickmccallum/mimetype-io/blob/master/src/mimeData.json)
-and uses it to statically map file extensions to the appropriate `Content-Type`
+using a Download step, then convert it to a `.zig` file.
+The result is passed as a module to the server build step and in comptime
+the server maps file extensions to the appropriate `Content-Type`
 header.
