@@ -39,7 +39,7 @@ maps file extensions to the appropriate `Content-Type` header.
 ## Compress step
 
 the repo holds a [src/build/Step/Compress.zig](src/build/Step/Compress.zig) to
-bundle the responses from the generated [MyBuild](src/build/MyBuild.zig)
+bundle the responses from the generated [ZBuild](src/build/ZBuild.zig)
 documentation into a `std.ComptimeStringMap` zig source code file.
 While this intermediate representation is not too efficient for large binaries,
 it allows comptime as well as runtime access to the compressed assets

@@ -1,10 +1,9 @@
 const std = @import("std");
-const MyBuild = @import("src/build/MyBuild.zig");
-const VendorDependency = @import("src/build/VendorDependency.zig");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const ZBuild = @import("build");
 
     const vendor = b.option(
         bool,
@@ -18,58 +17,33 @@ pub fn build(b: *std.Build) void {
     ) orelse false;
     _ = no_update_client;
 
-    const zigjs = VendorDependency.init(
-        b,
-        vendor,
-        "zigjs",
-        "libs/zig-js",
-        @import("libs/zig-js/build.zig"),
-        .{
-            .target = target,
-            .optimize = optimize,
-        },
-    );
-    const zap = VendorDependency.init(
-        b,
-        false,
-        // vendor, TODO: fix missing dependency issue on facil.io
-        "zap",
-        "libs/zap",
-        @import("libs/zap/build.zig"),
-        .{
-            .target = target,
-            .optimize = optimize,
-        },
-    );
-
-    const MyBuildSource = .{ .path = "src/build/MyBuild.zig" };
-    _ = b.addModule("MyBuild", .{
-        .source_file = MyBuildSource,
-    });
-    const mybuild_lib = b.addStaticLibrary(.{
-        .name = "MyBuild",
-        .root_source_file = MyBuildSource,
-        .optimize = optimize,
+    // const zigjs = VendorDependency.init(
+    //     b,
+    //     vendor,
+    //     "zigjs",
+    //     "libs/zig-js",
+    //     @import("libs/zig-js/build.zig"),
+    //     .{
+    //         .target = target,
+    //         .optimize = optimize,
+    //     },
+    // );
+    // const zap = VendorDependency.init(
+    //     b,
+    //     false,
+    //     // vendor, TODO: fix missing dependency issue on facil.io
+    //     "zap",
+    //     "libs/zap",
+    //     @import("libs/zap/build.zig"),
+    //     .{
+    //         .target = target,
+    //         .optimize = optimize,
+    //     },
+    // );
+    const zap = b.dependency("zap", .{
         .target = target,
+        .optimize = optimize,
     });
-
-    const mime_json = MyBuild.Step.Download.init(
-        b,
-        .{
-            .path = "https://raw.githubusercontent.com/dasimmet/mimetype-io/4a4be597f99080604bab2e5da17a1d44d4f86bc3/src/mimeData.json",
-        },
-        "mimetypes",
-    );
-    const mime_zig = MyBuild.Step.JZon.init(
-        b,
-        .{ .generated = &mime_json.output_file },
-        "jzon",
-    );
-    const update_mime = b.addWriteFiles();
-    update_mime.addCopyFileToSource(.{ .generated = &mime_zig.output_file }, "src/build/gen/mimeData.json.zig");
-    const mime_step = b.step("mimetypes", "Download and convert the mime data");
-    mime_step.dependOn(&update_mime.step);
-    // const mime_mod = mime_zig.module(b);
 
     const client_exe = b.addSharedLibrary(.{
         .name = "client",
@@ -81,30 +55,19 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     client_exe.rdynamic = true;
-    client_exe.addModule("zap", zap.module("zap"));
-    client_exe.addModule("zig-js", zigjs.module("zig-js"));
+    // client_exe.addModule("zig-js", zigjs.module("zig-js"));
     const install_client = b.addInstallArtifact(client_exe, .{});
-    var docs_dir = client_exe.getEmittedDocs();
-    const docs = b.addInstallDirectory(.{
-        .source_dir = docs_dir,
-        .install_dir = .prefix,
-        .install_subdir = "docs",
-    });
 
-    const compress = MyBuild.Step.Compress.init(
+    const compress = ZBuild.Step.Compress.init(
         b,
-        mybuild_lib.getEmittedDocs(),
-        // docs_dir,
-        // .{ .path = "assets" },
+        .{ .path = "assets" },
         "assets",
     );
     compress.method = b.option(
-        MyBuild.Step.Compress.Method,
+        ZBuild.Step.Compress.Method,
         "compress",
         "which compression method to use in CompressStep",
     ) orelse compress.method;
-
-    b.step("download", "download").dependOn(&mime_zig.step);
 
     const exe = b.addExecutable(.{
         .name = "zigtty",

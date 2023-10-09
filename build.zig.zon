@@ -2,6 +2,10 @@
     .name = "zig-webterm",
     .version = "0.0.1",
     .dependencies = .{
+        .zbuild = .{
+            .url = "https://gitlab.com/dasimmet/zbuild/-/archive/19987d965a218fac97ad9d0f42f25dc731343213/zbuild.tar.gz",
+            .hash = "122025455368340288f81d5188f01198cee1d5bd7858c330642f79fe27cdef579acf",
+        },
         .zigjs = .{
             .url = "https://github.com/dasimmet/zig-js/archive/68a1784b799019f8c6debc26c14c414e2e19447b.tar.gz",
             .hash = "12200d0f4c603971e6d66160bc638b37bfd43ad0c5c253b2ad233de1bec613bcc71f",
