@@ -1,5 +1,7 @@
 const std = @import("std");
 const MyBuild = @import("src/build/Build.zig");
+const zon = @import("build.zig.zon");
+const d = zon.dependencies;
 const VendorDependency = @import("src/build/VendorDependency.zig");
 
 pub fn build(b: *std.Build) void {
@@ -46,6 +48,15 @@ pub fn build(b: *std.Build) void {
     });
     _ = MyBuildModule;
 
+    const mimetypes = MyBuild.Download.init(
+        b,
+        .{
+            .path = "https://raw.githubusercontent.com/patrickmccallum/mimetype-io/9ada41c2e86131d1acc9c8d03d6e4e196a075932/src/mimeData.json",
+        },
+        "mimetypes",
+    );
+    const mime_mod = mimetypes.parseJson(b);
+
     const client_exe = b.addSharedLibrary(.{
         .name = "client",
         .root_source_file = .{ .path = "src/client.zig" },
@@ -77,19 +88,7 @@ pub fn build(b: *std.Build) void {
         "compress",
         "which compression method to use in CompressStep",
     ) orelse .Deflate;
-    const assets = b.addModule("assets", .{
-        .source_file = .{
-            .generated = &compress.output_file,
-        },
-    });
 
-    const mimetypes = MyBuild.Download.init(
-        b,
-        .{
-            .path = "https://raw.githubusercontent.com/patrickmccallum/mimetype-io/9ada41c2e86131d1acc9c8d03d6e4e196a075932/src/mimeData.json",
-        },
-        "mimetypes",
-    );
     b.step("download", "download").dependOn(&mimetypes.step);
 
     const exe = b.addExecutable(.{
@@ -101,7 +100,8 @@ pub fn build(b: *std.Build) void {
     // const docs_dir = exe.getEmittedDocs().relative("index.html");
     // const docs = b.addInstallBinFile(docs_dir, "docs.html");
 
-    exe.addModule("assets", assets);
+    exe.addModule("mimetypes", mime_mod);
+    exe.addModule("assets", compress.assets(b));
     exe.addModule("zap", zap.module("zap"));
     exe.linkLibrary(zap.artifact("facil.io"));
     const install = b.addInstallArtifact(

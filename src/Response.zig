@@ -1,6 +1,7 @@
 const std = @import("std");
 const zap = @import("zap");
 const assets = @import("assets");
+const Mimetypes = @import("mimetypes");
 
 const Response = @This();
 
@@ -20,9 +21,20 @@ pub fn render(r: zap.SimpleRequest, path: []const u8, res: assets.EntryType) voi
     }
 
     const extension = std.fs.path.extension(path);
-    const mime = mime_map.get(extension) orelse "text/html";
+    @setEvalBranchQuota(5000);
+    var mime: ?[]const u8 = null;
+    inline for (Mimetypes.data) |it| outer: {
+        inline for (it.types) |t| {
+            if (std.mem.eql(u8, extension, t)) {
+                std.log.debug("mimetype: {s}", .{it.name});
+                mime = it.name;
+                break :outer;
+            }
+        }
+    }
+    if (mime == null) server_error(r, "500 - Unknown Mime Type");
 
-    r.setHeader("Content-Type", mime) catch
+    r.setHeader("Content-Type", mime.?) catch
         return server_error(r, "500 - Set Content-Type Error");
 
     var buf: [64]u8 = undefined;

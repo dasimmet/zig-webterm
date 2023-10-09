@@ -19,7 +19,9 @@ embed_full_path: bool = false,
 fd: std.fs.File = undefined,
 output_file: std.Build.GeneratedFile,
 
+pub const OUT_BASENAME = "assets.zig";
 const CompressStep = @This();
+const Self = CompressStep;
 
 const Header =
     \\pub const zig_version_string = "{}";
@@ -65,6 +67,15 @@ pub fn init(
     self.dir.addStepDependencies(&self.step);
     return self;
 }
+
+pub fn assets(self: *Self, b: *std.Build) *std.Build.Module {
+    return b.addModule(self.step.name, .{
+        .source_file = .{
+            .generated = &self.output_file,
+        },
+    });
+}
+
 
 fn hash(compress: *CompressStep, man: *std.Build.Cache.Manifest) void {
     man.hash.addBytes(compress.step.name);
@@ -119,7 +130,7 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     const digest = man.final();
 
     compress.output_file.path = try b.cache_root.join(allocator, &.{
-        "o", &digest, "compress.zig",
+        "o", &digest, OUT_BASENAME,
     });
 
     if (step.result_cached) return;

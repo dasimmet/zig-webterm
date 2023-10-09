@@ -1,11 +1,19 @@
 const std = @import("std");
 const builtin = @import("builtin");
+pub const ParseJsonHeader = @import("../ParseJsonHeader.zig");
+pub const ParseJsonHeaderLiteral = @embedFile("../ParseJsonHeader.zig");
 
 step: std.build.Step,
 url: std.build.LazyPath,
 output_dir: std.Build.GeneratedFile,
 output_file: std.Build.GeneratedFile,
 max_file_size: usize = 1073741824,
+json_module: JsonModule = .DontBuild,
+
+const JsonModule = union(enum) {
+    DontBuild,
+    Build: std.Build.GeneratedFile,
+};
 
 const DownloadStep = @This();
 const Self = DownloadStep;
@@ -57,9 +65,11 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     // );
     // man.hash.addBytes(step.name);
     man.hash.addBytes(url);
+    man.hash.addBytes(@tagName(self.json_module));
+    man.hash.addBytes(ParseJsonHeaderLiteral);
 
     const basename = std.fs.path.basename(url);
-    std.log.warn("Basename: {s}", .{basename});
+    // std.log.warn("Basename: {s}", .{basename});
 
     self.step.result_cached = try man.hit();
     const digest = man.final();
@@ -71,9 +81,11 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     self.output_file.path = try b.global_cache_root.join(allocator, &.{
         "o", &digest, basename,
     });
-    std.log.warn("out: {s}", .{self.output_file.path.?});
+    // std.log.warn("out: {s}", .{self.output_file.path.?});
 
     b.global_cache_root.handle.makeDir("o") catch |err| {
+        const trace = @errorReturnTrace();
+        _ = trace;
         switch (err) {
             error.PathAlreadyExists => {},
             else => |e| return e,
@@ -110,7 +122,6 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
             },
         );
         defer allocator.free(dl_file);
-        std.log.warn("tmp: {s}", .{dl_dir});
 
         // const cwd = std.fs.cwd();
         try std.fs.makeDirAbsolute(dl_dir);
@@ -148,6 +159,71 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
         };
         try man.writeManifest();
     }
+    if (self.json_module == .Build) {
+        const json_path = try std.mem.join(
+            allocator,
+            "",
+            &[_][]const u8{
+                self.output_file.path.?,
+                ".zig",
+            },
+        );
+        std.log.warn("{s}", .{json_path});
+
+        self.json_module.Build.path = json_path;
+
+        const json_file = try std.fs.createFileAbsolute(
+            json_path,
+            .{},
+        );
+        defer json_file.close();
+
+        const content = try std.fs.cwd().readFileAlloc(
+            allocator,
+            self.output_file.path.?,
+            self.max_file_size,
+        );
+        defer allocator.free(content);
+    
+        const parsed = try std.json.parseFromSlice(
+            std.json.Value,
+            allocator,
+            content,
+            .{},
+        );
+        defer parsed.deinit();
+
+        try json_file.writeAll("pub const data=");
+        try ParseJsonHeader.json2Zon(
+            parsed.value,
+            json_file.writer(),
+            0
+        );
+        try json_file.writeAll(";");
+
+        // _ = try json_file.write(ParseJsonHeader);
+
+        // try json_file.writer().print(
+        //     "pub const value = parseJsonComptime(\"{}\");\n",
+        //     .{
+        //         std.zig.fmtEscapes(basename),
+        //     },
+        // );
+
+        // parsed.value.dump();
+    }
+}
+
+pub fn parseJson(self: *Self, b: *std.Build) *std.Build.Module {
+    self.json_module = .{ .Build = .{
+        .step = &self.step,
+    } };
+
+    return b.addModule(self.step.name, .{
+        .source_file = .{
+            .generated = &self.json_module.Build,
+        },
+    });
 }
 
 // fn randomHex(comptime size: usize, case: std.fmt.Case) []const u8 {
