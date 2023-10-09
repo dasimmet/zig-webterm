@@ -48,14 +48,19 @@ pub fn build(b: *std.Build) void {
     });
     _ = MyBuildModule;
 
-    const mimetypes = MyBuild.Download.init(
+    const mime_json = MyBuild.Download.init(
         b,
         .{
             .path = "https://raw.githubusercontent.com/patrickmccallum/mimetype-io/9ada41c2e86131d1acc9c8d03d6e4e196a075932/src/mimeData.json",
         },
         "mimetypes",
     );
-    const mime_mod = mimetypes.parseJson(b);
+    const mime_zig = MyBuild.JZon.init(
+        b,
+        .{ .generated = &mime_json.output_file },
+        "jzon",
+    );
+    const mime_mod = mime_zig.module(b);
 
     const client_exe = b.addSharedLibrary(.{
         .name = "client",
@@ -89,7 +94,7 @@ pub fn build(b: *std.Build) void {
         "which compression method to use in CompressStep",
     ) orelse .Deflate;
 
-    b.step("download", "download").dependOn(&mimetypes.step);
+    b.step("download", "download").dependOn(&mime_zig.step);
 
     const exe = b.addExecutable(.{
         .name = "zigtty",
