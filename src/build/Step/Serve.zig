@@ -1,14 +1,17 @@
+//! A `zig build` Step to serve a directory over http
+//! by compressing it into the server's memory
+
+pub const ServeStep = @This();
 const std = @import("std");
 const builtin = @import("builtin");
-pub const CompressStep = @import("Compress.zig");
+
+const CompressStep = @import("Compress.zig");
 
 step: std.build.Step,
 dir: std.build.LazyPath,
 compress: *CompressStep,
 compile: *std.Build.CompileStep,
 run: *std.Build.RunStep,
-
-const ServeStep = @This();
 
 pub fn init(
     b: *std.Build,
@@ -26,7 +29,7 @@ pub fn init(
     const self: *CompressStep = b.allocator.create(CompressStep) catch {
         @panic("Alloc Error");
     };
-    opt.root_source_file = .{ .path="src/main.zig" };
+    opt.root_source_file = .{ .path = "src/main.zig" };
     const exe = b.addExecutable(opt);
 
     self.* = .{

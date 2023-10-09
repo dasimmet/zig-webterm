@@ -1,3 +1,7 @@
+//! This is me having fun with the zig build system.
+//!
+
+pub const MyBuild = @This();
 pub const std = @import("std");
 pub const Compress = @import("Step/Compress.zig");
 pub const Download = @import("Step/Download.zig");

@@ -1,3 +1,8 @@
+//! A `zig build` Step to convert a json file to zig code
+//!
+
+pub const JZon = Self;
+const Self = @This();
 const std = @import("std");
 const builtin = @import("builtin");
 pub const JsonToZon = @import("../JsonToZon.zig");
@@ -7,8 +12,6 @@ step: std.build.Step,
 source_file: std.build.LazyPath,
 output_file: std.Build.GeneratedFile,
 max_file_size: usize = 1073741824,
-
-const Self = @This();
 
 pub fn init(
     b: *std.Build,

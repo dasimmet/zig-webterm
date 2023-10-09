@@ -1,3 +1,8 @@
+//! A `zig build` Step to convert a directory of files into a
+//! ComptimeStringMap
+//!
+
+const CompressStep = @This();
 const std = @import("std");
 const builtin = @import("builtin");
 pub const RecursiveDirIterator = @import("../RecursiveDirIterator.zig");
@@ -20,7 +25,6 @@ fd: std.fs.File = undefined,
 output_file: std.Build.GeneratedFile,
 
 pub const OUT_BASENAME = "assets.zig";
-const CompressStep = @This();
 const Self = CompressStep;
 
 const Header =
@@ -76,7 +80,6 @@ pub fn assets(self: *Self, b: *std.Build) *std.Build.Module {
     });
 }
 
-
 fn hash(compress: *CompressStep, man: *std.Build.Cache.Manifest) void {
     man.hash.addBytes(compress.step.name);
     // the coolest hack when working on caching mechanisms is to include the source :-D
@@ -117,8 +120,8 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
     };
     try RecursiveDirIterator.run(
         allocator,
-        cacheEntry,
         compress.dir.getPath2(b, step),
+        cacheEntry,
         &ctx,
     );
     if (try man.hit()) {
@@ -154,8 +157,8 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
 
     try RecursiveDirIterator.run(
         allocator,
-        processEntry,
         compress.dir.getPath2(b, &compress.step),
+        processEntry,
         &ctx,
     );
 

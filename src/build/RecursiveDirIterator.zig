@@ -1,14 +1,16 @@
-// pass a function pointer to execute on each file found
-// recursively in a base directory path
+//! The RecusiveDirIterator executes an `entryFn`
+//! for each file in a directory by
+//! recursively walking a base directory path
 
 const std = @import("std");
 const RecursiveDirIterator = @This();
-pub const PathArray = std.ArrayList(u8);
+const PathArray = std.ArrayList(u8);
 
+/// runs the iterator on directory `base`
 pub fn run(
     allocator: std.mem.Allocator,
-    entryFn: anytype,
     base: []const u8,
+    entryFn: anytype,
     args: anytype,
 ) !void {
     var p = try PathArray.initCapacity(allocator, std.fs.MAX_PATH_BYTES);
@@ -61,4 +63,10 @@ fn iter(
         }
         try path.resize(path.items.len - entry.name.len - std.fs.path.sep_str.len);
     }
+}
+
+/// an example of a function to be passed to the iterator.
+/// The ctx argument is passed down from the iterator to entryFn.
+pub fn entryFnExample(base: []const u8, entry_path: []const u8, entry_name: []const u8, ctx: anytype) !void {
+    std.log.info("Entry: {s},{s},{s},{any}", .{ base, entry_path, entry_name, ctx });
 }

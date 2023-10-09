@@ -17,14 +17,18 @@ bundle the responses from [assets/](assets/)
 into a `std.ComptimeStringMap` zig source code file.
 This file is added as a module to the server compilation.
 
-```
+```zig
 const CompressStep = @import("CompressStep");
-const assets_compressed = CompressStep.init(
+const assets = CompressStep.init(
     b,
     .{ .path = "src/assets" },
     "assets",
 );
-assets_compressed.compression = .Deflate;
+assets.method = .Deflate;
+// the method enum will enable compression on the file entries.
+// it will be shipped with the resulting zig file and can be switched on.
+// TODO: provide a way to set compression method on a per-file basis.
+
 server.step.dependOn(&assets_compressed.step);
 
 const assets = b.addModule("assets", .{

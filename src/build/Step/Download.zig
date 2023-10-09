@@ -1,3 +1,7 @@
+//! A `zig build` Step to download a file using curl
+//!
+
+const DownloadStep = @This();
 const std = @import("std");
 const builtin = @import("builtin");
 
@@ -7,7 +11,6 @@ output_dir: std.Build.GeneratedFile,
 output_file: std.Build.GeneratedFile,
 max_file_size: usize = 1073741824,
 
-const DownloadStep = @This();
 const Self = DownloadStep;
 
 pub fn init(
