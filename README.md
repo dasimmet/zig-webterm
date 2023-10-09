@@ -50,4 +50,5 @@ with a `.zon`-like syntax.
 It can then be imported as a module in subsequent steps.
 the example fetches a
 [list of mimetypes](https://github.com/patrickmccallum/mimetype-io/blob/master/src/mimeData.json)
-and uses it to 
+and uses it to statically map file extensions to the appropriate `Content-Type`
+header.
