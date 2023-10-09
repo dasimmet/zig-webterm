@@ -35,9 +35,19 @@ const assets = b.addModule("assets", .{
 the result is a single static binary webserver serving
 precompressed responses from memory ;-D.
 
+the default example embeds the static built documentation of the 
+build steps and serves them.
+
 # Download Step
 
 The module also has a `Download` Build step to fetch a file using the system
 `curl` command.
-It can optionally convert a json response to a zig module for import and
-comtime evaluation.
+
+# JZon Step
+
+the JZon step converts a `json` file from a LazyPath into a `.zig` file
+with a `.zon`-like syntax.
+It can then be imported as a module in subsequent steps.
+the example fetches a
+[list of mimetypes](https://github.com/patrickmccallum/mimetype-io/blob/master/src/mimeData.json)
+and uses it to 

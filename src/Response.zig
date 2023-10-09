@@ -31,7 +31,7 @@ pub fn render(r: zap.SimpleRequest, path: []const u8, res: assets.EntryType) voi
             }
         }
     }
-    if (mime == null) server_error(r, "500 - Unknown Mime Type");
+    if (mime == null) mime = "application/octet-stream";
 
     r.setHeader("Content-Type", mime.?) catch
         return server_error(r, "500 - Set Content-Type Error");

@@ -9,7 +9,7 @@ const std = @import("std");
 // this depends on  the implementation of ComptimeStringMap
 // and was optimized by trial and error
 // for zig version "0.12.0-dev.790+ad6f8e3a5"
-const EvalBranchQuotaMultiplier = 20;
+const EvalBranchQuotaMultiplier = 30;
 
 pub const Method = enum {
     Raw,

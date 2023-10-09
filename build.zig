@@ -47,11 +47,17 @@ pub fn build(b: *std.Build) void {
         .source_file = .{ .path = "src/build/Build.zig" },
     });
     _ = MyBuildModule;
+    const mybuild_lib = b.addStaticLibrary(.{
+        .name = "MyBuild",
+        .root_source_file = .{ .path = "src/build/Build.zig" },
+        .optimize = optimize,
+        .target = target,
+    });
 
     const mime_json = MyBuild.Download.init(
         b,
         .{
-            .path = "https://raw.githubusercontent.com/patrickmccallum/mimetype-io/9ada41c2e86131d1acc9c8d03d6e4e196a075932/src/mimeData.json",
+            .path = "https://raw.githubusercontent.com/dasimmet/mimetype-io/4a4be597f99080604bab2e5da17a1d44d4f86bc3/src/mimeData.json",
         },
         "mimetypes",
     );
@@ -84,7 +90,8 @@ pub fn build(b: *std.Build) void {
 
     const compress = MyBuild.Compress.init(
         b,
-        docs_dir,
+        mybuild_lib.getEmittedDocs(),
+        // docs_dir,
         // .{ .path = "assets" },
         "assets",
     );
