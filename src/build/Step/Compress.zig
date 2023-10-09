@@ -212,8 +212,9 @@ fn processEntry(base: []const u8, entry_path: []const u8, entry_name: []const u8
         },
     );
     if (compress.detect_mime) {
-        @setEvalBranchQuota(2000);
-        // @compileLog(MimeData.data.len);
+
+        // need to set branch quota relative to tuple length
+        @setEvalBranchQuota(MimeData.data.len*3);
         const extension = std.fs.path.extension(entry_path);
         inline for (MimeData.data) |it| outer: {
             inline for (it.types) |t| {

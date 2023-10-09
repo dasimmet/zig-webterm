@@ -102,7 +102,7 @@ pub fn build(b: *std.Build) void {
         MyBuild.Compress.Method,
         "compress",
         "which compression method to use in CompressStep",
-    ) orelse .Deflate;
+    ) orelse compress.method;
 
     b.step("download", "download").dependOn(&mime_zig.step);
 
