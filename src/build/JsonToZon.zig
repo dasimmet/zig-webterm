@@ -48,7 +48,7 @@ pub fn convert(Jvalue: std.json.Value, writer: anytype, indent: usize) !void {
                 for (0..indent + 1) |_| {
                     _ = try writer.write("  ");
                 }
-                _ = try writer.print(".@\"{}\"=", .{std.zig.fmtEscapes(entry.key_ptr.*)});
+                _ = try writer.print(".{}=", .{std.zig.fmtId(entry.key_ptr.*)});
                 try convert(entry.value_ptr.*, writer, indent + 1);
                 _ = try writer.write(",\n");
             }
