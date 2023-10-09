@@ -53,14 +53,14 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
-    const mime_json = MyBuild.Download.init(
+    const mime_json = MyBuild.Step.Download.init(
         b,
         .{
             .path = "https://raw.githubusercontent.com/dasimmet/mimetype-io/4a4be597f99080604bab2e5da17a1d44d4f86bc3/src/mimeData.json",
         },
         "mimetypes",
     );
-    const mime_zig = MyBuild.JZon.init(
+    const mime_zig = MyBuild.Step.JZon.init(
         b,
         .{ .generated = &mime_json.output_file },
         "jzon",
@@ -91,7 +91,7 @@ pub fn build(b: *std.Build) void {
         .install_subdir = "docs",
     });
 
-    const compress = MyBuild.Compress.init(
+    const compress = MyBuild.Step.Compress.init(
         b,
         mybuild_lib.getEmittedDocs(),
         // docs_dir,
@@ -99,7 +99,7 @@ pub fn build(b: *std.Build) void {
         "assets",
     );
     compress.method = b.option(
-        MyBuild.Compress.Method,
+        MyBuild.Step.Compress.Method,
         "compress",
         "which compression method to use in CompressStep",
     ) orelse compress.method;
@@ -130,6 +130,7 @@ pub fn build(b: *std.Build) void {
     );
     var client = b.step("client", "update client.wasm");
     client.dependOn(&update_client.step);
+    client.dependOn(&install_client.step);
 
     var run = b.step("run", "run the server");
     // if (!no_update_client) exe.step.dependOn(client);
@@ -140,7 +141,6 @@ pub fn build(b: *std.Build) void {
     run.dependOn(&run_step.step);
 
     var install_step = b.getInstallStep();
-    install_step.dependOn(&install_client.step);
     install_step.dependOn(&install.step);
     install_step.dependOn(&docs.step);
 

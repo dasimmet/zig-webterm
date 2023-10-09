@@ -50,18 +50,16 @@ fn iter(
         try path.appendSlice(entry.name);
         switch (entry.kind) {
             .directory => {
-                // std.log.debug("Iterator Entering: {s},{s},{s}", .{ base, path.items, entry.name });
                 try RecursiveDirIterator.iter(entryFn, base, path, args);
             },
             .file => {
-                // std.log.debug("Processing File: {s},{s},{s}", .{ base, path.items, entry.name });
                 try entryFn(base, path.items, entry.name, args);
             },
             else => {
                 return error.NOTSUPPORTED;
             },
         }
-        try path.resize(path.items.len - entry.name.len - std.fs.path.sep_str.len);
+        path.shrinkRetainingCapacity(path.items.len - entry.name.len - std.fs.path.sep_str.len);
     }
 }
 
