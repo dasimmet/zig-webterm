@@ -1,15 +1,9 @@
 const std = @import("std");
+const ZBuild: type = @import("ZBuild").ZBuild;
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const ZBuild = @import("build");
-
-    const vendor = b.option(
-        bool,
-        "vendor",
-        "use git submodule for dependencies",
-    ) orelse false;
     const no_update_client = b.option(
         bool,
         "no-update-client",
@@ -17,29 +11,6 @@ pub fn build(b: *std.Build) void {
     ) orelse false;
     _ = no_update_client;
 
-    // const zigjs = VendorDependency.init(
-    //     b,
-    //     vendor,
-    //     "zigjs",
-    //     "libs/zig-js",
-    //     @import("libs/zig-js/build.zig"),
-    //     .{
-    //         .target = target,
-    //         .optimize = optimize,
-    //     },
-    // );
-    // const zap = VendorDependency.init(
-    //     b,
-    //     false,
-    //     // vendor, TODO: fix missing dependency issue on facil.io
-    //     "zap",
-    //     "libs/zap",
-    //     @import("libs/zap/build.zig"),
-    //     .{
-    //         .target = target,
-    //         .optimize = optimize,
-    //     },
-    // );
     const zap = b.dependency("zap", .{
         .target = target,
         .optimize = optimize,
@@ -105,7 +76,6 @@ pub fn build(b: *std.Build) void {
 
     var install_step = b.getInstallStep();
     install_step.dependOn(&install.step);
-    install_step.dependOn(&docs.step);
 
     // Creates a step for unit testing.
     const main_tests = b.addTest(.{
