@@ -26,7 +26,6 @@ pub fn render(r: zap.SimpleRequest, path: []const u8, res: assets.EntryType) voi
     inline for (Mimetypes.data) |it| outer: {
         inline for (it.types) |t| {
             if (std.mem.eql(u8, extension, t)) {
-                std.log.debug("mimetype: {s}", .{it.name});
                 mime = it.name;
                 break :outer;
             }

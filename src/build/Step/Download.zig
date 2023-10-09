@@ -116,8 +116,8 @@ fn make(step: *std.build.Step, prog_node: *std.Progress.Node) anyerror!void {
         // const cwd = std.fs.cwd();
         try std.fs.makeDirAbsolute(dl_dir);
         defer std.fs.deleteTreeAbsolute(dl_dir) catch {
-            std.log.warn("Error Cleaning Dir: {s}", .{dl_dir});
-            @panic("Error Cleaning Dir");
+            std.log.err("Error Cleaning Dir: {s}", .{dl_dir});
+            @panic("Directory Cleanup");
         };
 
         const argv = [_][]const u8{ "curl", "-OL", url };
