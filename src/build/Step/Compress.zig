@@ -96,6 +96,7 @@ fn hash(compress: *CompressStep, man: *std.Build.Cache.Manifest) void {
     man.hash.add(compress.method);
     man.hash.add(compress.embed_full_path);
     man.hash.add(compress.detect_mime);
+    man.hash.add(MimeData.data.len);
     man.hash.addBytes(CompressHeader_literal);
     man.hash.addBytes(Header);
 }
@@ -191,7 +192,8 @@ fn processEntry(base: []const u8, entry_path: []const u8, entry_name: []const u8
     const out_writer = compress.fd.writer();
     const allocator = compress.step.owner.allocator;
 
-    const relpath = entry_path[base.len + 1 ..];
+    const relpath = entry_path[base.len + std.fs.path.sep_str.len ..];
+    ctx.prog_node.setUnit(relpath);
 
     const fd = try std.fs.openFileAbsolute(
         entry_path,

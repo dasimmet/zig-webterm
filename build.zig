@@ -1,5 +1,5 @@
 const std = @import("std");
-const MyBuild = @import("src/build/Build.zig");
+const MyBuild = @import("src/build/MyBuild.zig");
 const VendorDependency = @import("src/build/VendorDependency.zig");
 
 pub fn build(b: *std.Build) void {
@@ -42,13 +42,13 @@ pub fn build(b: *std.Build) void {
         },
     );
 
-    const MyBuildModule = b.addModule("MyBuild", .{
-        .source_file = .{ .path = "src/build/Build.zig" },
+    const MyBuildSource = .{ .path = "src/build/MyBuild.zig" };
+    _ = b.addModule("MyBuild", .{
+        .source_file = MyBuildSource,
     });
-    _ = MyBuildModule;
     const mybuild_lib = b.addStaticLibrary(.{
         .name = "MyBuild",
-        .root_source_file = .{ .path = "src/build/Build.zig" },
+        .root_source_file = MyBuildSource,
         .optimize = optimize,
         .target = target,
     });
