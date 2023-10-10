@@ -11,7 +11,7 @@ pub fn build(b: *std.Build) void {
     ) orelse false;
     _ = no_update_client;
 
-    const zap = b.dependency("zap", .{
+    const zbuild_dep = b.dependency("ZBuild", .{
         .target = target,
         .optimize = optimize,
     });
@@ -29,9 +29,14 @@ pub fn build(b: *std.Build) void {
     // client_exe.addModule("zig-js", zigjs.module("zig-js"));
     const install_client = b.addInstallArtifact(client_exe, .{});
 
+    const AssetDir = b.option(
+        []const u8,
+        "AssetDir",
+        "Directory for static assets",
+    ) orelse "assets";
     const compress = ZBuild.Step.Compress.init(
         b,
-        .{ .path = "assets" },
+        .{ .path = AssetDir },
         "assets",
     );
     compress.method = b.option(
@@ -40,21 +45,27 @@ pub fn build(b: *std.Build) void {
         "which compression method to use in CompressStep",
     ) orelse compress.method;
 
-    const exe = b.addExecutable(.{
-        .name = "zigtty",
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    // const docs_dir = exe.getEmittedDocs().relative("index.html");
-    // const docs = b.addInstallBinFile(docs_dir, "docs.html");
-
-    exe.addModule("assets", compress.assets(b));
-    exe.addModule("zap", zap.module("zap"));
-    exe.linkLibrary(zap.artifact("facil.io"));
-    const install = b.addInstallArtifact(
-        exe,
-        .{},
+    var zb = ZBuild.Step.Serve.init(
+        b,
+        .{
+            .assets = compress.module(b),
+            .dependency = zbuild_dep,
+            .name = "serve",
+            .options = .{
+                .name = "zbuild-serve",
+                .root_source_file = .{ .path = "" },
+                .target = target,
+                .optimize = optimize,
+            },
+            .api = b.addModule(
+                "name: []const u8",
+                .{
+                    .source_file = .{
+                        .path="src/ZBuildApi.zig",
+                    },
+                },
+            ),
+        },
     );
 
     const update_client = b.addWriteFiles();
@@ -68,14 +79,11 @@ pub fn build(b: *std.Build) void {
 
     var run = b.step("run", "run the server");
     // if (!no_update_client) exe.step.dependOn(client);
-    const run_step = b.addRunArtifact(exe);
-    if (b.args) |args| {
-        run_step.addArgs(args);
-    }
-    run.dependOn(&run_step.step);
+    zb.run(b, run);
+    // run.dependOn(&run_step.step);
 
     var install_step = b.getInstallStep();
-    install_step.dependOn(&install.step);
+    install_step.dependOn(run);
 
     // Creates a step for unit testing.
     const main_tests = b.addTest(.{
