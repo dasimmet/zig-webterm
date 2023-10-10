@@ -43,7 +43,7 @@ pub fn build(b: *std.Build) void {
         ZBuild.Step.Compress.Method,
         "compress",
         "which compression method to use in CompressStep",
-    ) orelse compress.method;
+    ) orelse .Deflate;
 
     var zb = ZBuild.Step.Serve.init(
         b,
@@ -58,7 +58,7 @@ pub fn build(b: *std.Build) void {
                 .optimize = optimize,
             },
             .api = b.addModule(
-                "name: []const u8",
+                "ZBuildApi",
                 .{
                     .source_file = .{
                         .path="src/ZBuildApi.zig",

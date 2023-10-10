@@ -1,6 +1,17 @@
 const zap = @import("zap");
+const Websocket = @import("Websocket.zig");
 
-pub const on_upgrade = @import("Websocket.zig").on_upgrade;
+pub fn on_init(listener: zap.SimpleEndpointListener) void {
+    Websocket.GlobalContextManager =
+        Websocket.ContextManager.init(
+            &[_][]const u8{ "ls", "-alsh" },
+            listener.allocator,
+            "wololo",
+            "derp-",
+        );
+}
+
+pub const on_upgrade = Websocket.on_upgrade;
 
 pub fn on_request(r: zap.SimpleRequest) void {
     r.setStatus(.not_found);
