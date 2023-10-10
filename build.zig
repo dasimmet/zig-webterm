@@ -67,6 +67,7 @@ pub fn build(b: *std.Build) void {
             ),
         },
     );
+    b.installArtifact(zb.compile);
 
     const update_client = b.addWriteFiles();
     update_client.addCopyFileToSource(
@@ -81,9 +82,6 @@ pub fn build(b: *std.Build) void {
     // if (!no_update_client) exe.step.dependOn(client);
     zb.run(b, run);
     // run.dependOn(&run_step.step);
-
-    var install_step = b.getInstallStep();
-    install_step.dependOn(run);
 
     // Creates a step for unit testing.
     const main_tests = b.addTest(.{
