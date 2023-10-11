@@ -61,7 +61,7 @@ pub fn build(b: *std.Build) void {
                 "ZBuildApi",
                 .{
                     .source_file = .{
-                        .path="src/ZBuildApi.zig",
+                        .path = "src/ZBuildApi.zig",
                     },
                 },
             ),
@@ -80,7 +80,7 @@ pub fn build(b: *std.Build) void {
 
     var run = b.step("run", "run the server");
     // if (!no_update_client) exe.step.dependOn(client);
-    zb.run(b, run);
+    _ = zb.run(b, run);
     // run.dependOn(&run_step.step);
 
     // Creates a step for unit testing.
