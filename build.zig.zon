@@ -10,19 +10,5 @@
             .url = "https://github.com/dasimmet/zig-js/archive/68a1784b799019f8c6debc26c14c414e2e19447b.tar.gz",
             .hash = "12200d0f4c603971e6d66160bc638b37bfd43ad0c5c253b2ad233de1bec613bcc71f",
         },
-        // zap v0.1.10-pre
-        .zap = .{
-            .url = "https://github.com/zigzap/zap/archive/1dce4d3d9e210730cfd01ecf3acedc578d8274f1.tar.gz",
-            .hash = "122025455368340288f81d5188f01198cee1d5bd7858c330642f79fe27cdef579acf",
-        },
-        .@"facil.io" = .{
-            .url = "https://github.com/zigzap/facil.io/archive/refs/tags/zap-0.0.12.tar.gz",
-            .hash = "12200301960bbde64052db068cf31a64091ce1f671898513d9b8d9e2be5b0e4b13a3",
-        },
-        // // test dependency without build.zig
-        // .py3 = .{
-        //     .url = "https://gitlab.com/dasimmet/python_script_template/-/archive/main/python_script_template-main.tar.gz",
-        //     .hash = "1220b5f85b88cc3d4ec5cbebd65257e9bf83b76e7eaf760f11f9df1ecc6759b0d2e9",
-        // },
     },
 }

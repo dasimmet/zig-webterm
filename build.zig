@@ -61,10 +61,10 @@ pub fn build(b: *std.Build) void {
                 .optimize = optimize,
             },
             .api = b.addModule(
-                "ZBuildApi",
+                "Api",
                 .{
                     .source_file = .{
-                        .path = "src/ZBuildApi.zig",
+                        .path = "src/Api.zig",
                     },
                 },
             ),
