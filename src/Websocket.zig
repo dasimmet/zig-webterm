@@ -88,6 +88,25 @@ pub const ContextManager = struct {
         proc.stdin_behavior = .Pipe;
         proc.stdout_behavior = .Pipe;
         proc.stderr_behavior = .Pipe;
+
+        // const c = @cImport({
+        //     @cInclude("assert.h");
+        //     @cInclude("stdio.h");
+        //     @cInclude("string.h");
+        //     @cInclude("stdlib.h");
+        //     @cInclude("pty.h");
+        //     @cInclude("utmp.h");
+        // });
+        // var master: c_int = 0;
+        // const name = try std.heap.page_allocator.dupeZ(u8, "test");
+        // const p = c.forkpty(
+        //     master,
+        //     name,
+        //     null,
+        //     null,
+        // );
+        // std.log.warn("pty: {any}\nmaster: {any}\n", .{p,master});
+
         ctx.* = .{
             .manager = self,
             .userName = userName,
