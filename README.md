@@ -7,5 +7,5 @@ for now my demo repo for `https://gitlab.com/dasimmet/zbuild`.
 
 ```
 eval "$(zig build zbuild -- eval)"
-zbuild zonupd ZBuild repo ../zbuild
+zbuild zon upd ZBuild repo ../zbuild
 ```
