@@ -4,7 +4,7 @@ const ZBuild: type = @import("ZBuild").ZBuild;
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    ZBuild.init(.{
+    _ = ZBuild.init(.{
         .owner = b,
     });
     const no_update_client = b.option(
