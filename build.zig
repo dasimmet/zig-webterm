@@ -53,6 +53,7 @@ pub fn build(b: *std.Build) void {
             .owner = b,
             .assets = compress.module(b),
             .dependency = zbuild_dep,
+            .port = 8000,
             .name = "serve",
             .options = .{
                 .name = "zbuild-serve",

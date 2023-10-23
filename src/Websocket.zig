@@ -4,8 +4,6 @@ const WebSockets = zap.WebSockets;
 
 const Process = @import("Process.zig");
 
-// global variables, yeah!
-pub var GlobalContextManager: ContextManager = undefined;
 pub const WebsocketHandler = WebSockets.Handler(Context);
 
 const Context = struct {
@@ -193,7 +191,7 @@ fn handle_websocket_message(
 // HTTP stuff
 //
 
-pub fn on_upgrade(r: zap.SimpleRequest, target_protocol: []const u8) void {
+pub fn on_upgrade(ctx: *ContextManager, r: zap.SimpleRequest, target_protocol: []const u8) void {
     // make sure we're talking the right protocol
     if (!std.mem.eql(u8, target_protocol, "websocket")) {
         std.log.warn("received illegal protocol: {s}", .{target_protocol});
@@ -201,7 +199,7 @@ pub fn on_upgrade(r: zap.SimpleRequest, target_protocol: []const u8) void {
         r.sendBody("400 - BAD REQUEST") catch unreachable;
         return;
     }
-    var context = GlobalContextManager.newContext() catch |err| {
+    var context = ctx.newContext() catch |err| {
         std.log.err("Error creating context: {any}", .{err});
         return;
     };
