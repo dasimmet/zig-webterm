@@ -33,7 +33,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseSmall,
         .use_lld = true,
     });
-    client_exe.addSystemFrameworkPath(.{.generated=&emsdk.sysroot});
+    client_exe.addSystemFrameworkPath(.{ .generated = &emsdk.sysroot });
     client_exe.linkLibC();
     client_exe.rdynamic = true;
     // client_exe.addModule("zig-js", zigjs.module("zig-js"));
@@ -94,16 +94,14 @@ pub fn build(b: *std.Build) void {
     _ = zb.run(b, run);
     // run.dependOn(&run_step.step);
 
-    // Creates a step for unit testing.
-    const main_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
+    const ptytest = b.addExecutable(.{
+        .name = "ptytest",
+        .root_source_file = .{ .path = "src/ptytest.zig" },
+        .link_libc = true,
     });
-
     // This creates a build step. It will be visible in the `zig build --help` menu,
     // and can be selected like this: `zig build test`
     // This will evaluate the `test` step rather than the default, which is "install".
-    const test_step = b.step("test", "Run library tests");
-    test_step.dependOn(&main_tests.step);
+    const ptytest_step = b.step("ptytest", "Run ptytest");
+    ptytest_step.dependOn(&b.addRunArtifact(ptytest).step);
 }
