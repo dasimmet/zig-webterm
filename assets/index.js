@@ -3,6 +3,16 @@ var client = fetch("/client.wasm");
 let term_div = document.getElementById('terminal');
 let instance = undefined;
 var importObject = {
+  env: {
+    write: function (f, script_ptr, script_len) {
+      const memory = instance.exports.memory;
+      const memv = new Uint8Array(memory.buffer, script_ptr, script_len);
+      var string = new TextDecoder().decode(memv);
+      console.log("WASM_WRITE:", f, string);
+    },
+    __errno_location: function (script_ptr, script_len) {
+    },
+  },
   imports: {
     eval: function (script_ptr, script_len) {
       const memory = instance.exports.memory;
@@ -45,15 +55,15 @@ WebAssembly.instantiateStreaming(client, importObject)
     instance = res.instance;
     instance.exports.main();
   },
-)
-.catch(error=>{
-  console.log('there was some error; ', error)
-});
-window.addEventListener("resize", (ev)=>{
-    instance.exports.resize(window.innerWidth, window.innerHeight);
+  )
+  .catch(error => {
+    console.log('there was some error; ', error)
+  });
+window.addEventListener("resize", (ev) => {
+  instance.exports.resize(window.innerWidth, window.innerHeight);
 });
 
-var term = new Terminal({convertEol: true});
+var term = new Terminal({ convertEol: true });
 term.open(term_div);
 // term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m $ ');
 
@@ -64,7 +74,7 @@ ws_proto_map = {
 }
 ws_url.protocol = ws_proto_map[ws_url.protocol];
 ws_url.pathname = "/chat";
-console.log("Connecting Websocket:" ,ws_url.href);
+console.log("Connecting Websocket:", ws_url.href);
 
 var ws = new WebSocket(ws_url.href);
 const attachAddon = new AttachAddon.AttachAddon(ws);
@@ -74,17 +84,17 @@ term.loadAddon(fitAddon);
 fitAddon.fit();
 
 term.onResize(function (evt) {
-   websocket.send({ rows: evt.rows });
+  websocket.send({ rows: evt.rows });
 });
 
 
-ws.onopen = function(e) { 
+ws.onopen = function (e) {
   console.log("OPEN:", e);
 };
-ws.onmessage = function(e) { 
+ws.onmessage = function (e) {
   console.log("MESSAGE:", e);
 };
-ws.onclose = function(e) { 
+ws.onclose = function (e) {
   console.log("CLOSE:", e);
   let closed_div = document.getElementById('close');
   closed_div.style.display = "unset";

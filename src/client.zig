@@ -25,19 +25,19 @@ pub fn panic(msg: []const u8, trace: ?*std.builtin.StackTrace, code: ?usize) nor
     std.log.err("Panic: {s}\nTrace:\n{any}\n", .{ msg, trace });
     ext.panic_wasm();
 }
-pub const std_options = struct {
-    pub fn logFn(
-        comptime message_level: std.log.Level,
-        comptime scope: @Type(.EnumLiteral),
-        comptime format: []const u8,
-        args: anytype,
-    ) void {
-        _ = scope;
+// pub const std_options = struct {
+//     pub fn logFn(
+//         comptime message_level: std.log.Level,
+//         comptime scope: @Type(.EnumLiteral),
+//         comptime format: []const u8,
+//         args: anytype,
+//     ) void {
+//         _ = scope;
 
-        const str = std.fmt.bufPrint(&logBuf, format, args) catch @panic("Log Buffer Overflow");
-        ext.log_wasm(@intFromEnum(message_level), @intFromPtr(str.ptr), str.len);
-    }
-};
+//         const str = std.fmt.bufPrint(&logBuf, format, args) catch @panic("Log Buffer Overflow");
+//         ext.log_wasm(@intFromEnum(message_level), @intFromPtr(str.ptr), str.len);
+//     }
+// };
 
 fn do_log(comptime fmt: []const u8, args: anytype) void {
     std.log.info(fmt, args);
@@ -50,13 +50,16 @@ pub fn eval_str(source: []const u8) u32 {
     );
 }
 export fn main() void {
-    std.log.debug("DEBUG", .{});
-    std.log.info("INFO", .{});
-    std.log.warn("WARN", .{});
-    std.log.err("ERR", .{});
+    const stdout = std.io.getStdOut();
+    _ = stdout.write("WOLOLO") catch @panic("WHY!?");
+    // std.log.debug("DEBUG", .{});
+    // std.log.info("INFO", .{});
+    // std.log.warn("WARN", .{});
+    // std.log.err("ERR", .{});
     // std.log.info("{s}{s}", .{script,canvas_script});
     const res = eval_str(hello_world_script);
-    std.log.info("This int is the result of the last eval statement: {}", .{res});
+    _ = res;
+    // std.log.info("This int is the result of the last eval statement: {}", .{res});
 }
 
 const hello_world_script =

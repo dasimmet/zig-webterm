@@ -19,15 +19,22 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const emsdk = ZBuild.Step.Emsdk.init(.{
+        .name = "emsdk",
+        .owner = b,
+    });
     const client_exe = b.addSharedLibrary(.{
         .name = "client",
         .root_source_file = .{ .path = "src/client.zig" },
         .target = .{
-            .os_tag = .freestanding,
+            .os_tag = .emscripten,
             .cpu_arch = .wasm32,
         },
-        .optimize = optimize,
+        .optimize = .ReleaseSmall,
+        .use_lld = true,
     });
+    client_exe.addSystemFrameworkPath(.{.generated=&emsdk.sysroot});
+    client_exe.linkLibC();
     client_exe.rdynamic = true;
     // client_exe.addModule("zig-js", zigjs.module("zig-js"));
     const install_client = b.addInstallArtifact(client_exe, .{});
