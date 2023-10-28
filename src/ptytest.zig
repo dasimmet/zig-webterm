@@ -1,24 +1,40 @@
 const std = @import("std");
 
 const c = @cImport({
-    @cInclude("assert.h");
-    @cInclude("stdio.h");
-    @cInclude("string.h");
+//     #include <stdlib.h>
+// #include <sys/types.h>
+// #include <sys/socket.h>
+// #include <sys/signal.h>
+// #include <sys/ioctl.h>
+// #include <sys/wait.h>
+// #include <sys/poll.h>
+// #include <netinet/in.h>
+// #include <pty.h>
+// #include <arpa/inet.h>
+// #include <unistd.h>
     @cInclude("stdlib.h");
+    @cInclude("stdio.h");
+    @cInclude("errno.h");
+    @cInclude("assert.h");
+    @cInclude("string.h");
     @cInclude("pty.h");
     @cInclude("utmp.h");
 });
 
 pub fn main() !void {
     const stderr = std.io.getStdErr().writer();
-    var master: c_int = 10;
-    // var name = try std.heap.page_allocator.dupeZ(u8, "test");
-    const pid = c.forkpty(
+    var master: c_int = undefined;
+    var slave: c_int = undefined;
+    var name = try std.heap.page_allocator.dupeZ(u8, "test");
+    const pid = c.openpty(
         master,
-        0,
-        0,
-        0,
+        slave,
+        name,
+        null,
+        null,
     );
+    // defer c.close(master);
+    // defer c.close(slave);
 
     if (-1 == pid)
         // forkpty failed
