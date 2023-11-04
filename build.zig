@@ -33,7 +33,9 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseSmall,
         .use_lld = true,
     });
-    client_exe.addSystemFrameworkPath(.{ .generated = &emsdk.sysroot });
+    client_exe.addSystemFrameworkPath(emsdk.relative_path(
+        "upstream/emscripten/cache/sysroot",
+    ));
     client_exe.linkLibC();
     client_exe.rdynamic = true;
     // client_exe.addModule("zig-js", zigjs.module("zig-js"));
