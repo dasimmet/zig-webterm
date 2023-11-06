@@ -8,7 +8,7 @@ pub const Context = struct {
 pub fn init(listener: zap.SimpleEndpointListener) Context {
     return .{
         .WsMan = Websocket.ContextManager.init(
-            &[_][]const u8{ "ls", "-alsh" },
+            &[_][]const u8{"htop"},
             listener.allocator,
             "wololo",
             "derp-",
