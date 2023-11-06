@@ -53,22 +53,24 @@ pub const system = struct {
     };
 
     pub const S = struct {
-        pub const IFMT = 0o0;
-        pub const IFBLK = 0o1;
-        pub const IFCHR = 0o2;
-        pub const IFDIR = 0o3;
-        pub const IFIFO = 0o4;
-        pub const IFLNK = 0o5;
-        pub const IFREG = 0o6;
-        pub const IFSOCK = 0o7;
+        pub const IFMT = 0;
+        pub const IFBLK = 1;
+        pub const IFCHR = 2;
+        pub const IFDIR = 3;
+        pub const IFIFO = 4;
+        pub const IFLNK = 5;
+        pub const IFREG = 6;
+        pub const IFSOCK = 7;
         pub fn ISCHR() void {}
     };
 
     pub const O = struct {
-        pub const RDONLY = 0o0;
-        pub const WRONLY = 0o1;
-        pub const RDWR = 0o2;
-        pub const CLOEXEC = 0o4;
+        pub const RDONLY = 0;
+        pub const WRONLY = 1;
+        pub const RDWR = 2;
+        pub const CLOEXEC = 3;
+        pub const NOFOLLOW = 4;
+        pub const DIRECTORY = 5;
     };
 
     pub const Stat = struct {

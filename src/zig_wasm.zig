@@ -11,6 +11,9 @@ pub fn test_main() !void {
     const fd = try cwd.openFile("index.html", .{});
     defer fd.close();
 
+    const fd2 = try std.fs.openDirAbsolute("index.html", .{});
+    _ = fd2;
+
     _ = try fd.stat();
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
