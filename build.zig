@@ -129,6 +129,7 @@ pub fn build(b: *std.Build) void {
         .source_file = .{ .path = "src/zig_options.zig" },
     })) catch @panic("OOM");
     zig_exe.addModule("zig", zig_mod);
+    zig_exe.addModule("fs", compress.module(b));
     const zig_step = b.step("zig", "build zig for wasm");
-    zig_step.dependOn(&zig_exe.step);
+    zig_step.dependOn(&b.addInstallArtifact(zig_exe, .{}).step);
 }

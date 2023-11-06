@@ -1,6 +1,10 @@
+const std = @import("std");
+const asset_fs = @import("fs");
+
 pub const os = @This();
 pub const isize_t = i32;
 pub const usize_t = u32;
+pub const PATH_MAX = 4096;
 pub const system = struct {
     pub const fd_t = isize_t;
     pub const uid_t = void;
@@ -13,7 +17,7 @@ pub const system = struct {
     pub export const STDIN_FILENO: fd_t = 0;
     pub export const STDOUT_FILENO: fd_t = 1;
     pub export const STDERR_FILENO: fd_t = 2;
-    pub export const CLOCK = enum(u16) {
+    pub const CLOCK = enum(u16) {
         MONOTONIC,
     };
 
@@ -71,16 +75,35 @@ pub const system = struct {
         PIPE,
         CONNRESET,
         BUSY,
+
+        // Filesystem Errors
+        ACCES,
+        OVERFLOW,
+        ISDIR,
+        LOOP,
+        MFILE,
+        NAMETOOLONG,
+        NFILE,
+        NODEV,
+        NOENT,
+        NOMEM,
+        NOTDIR,
+        EXIST,
+        OPNOTSUPP,
+        TXTBSY,
+
+        // Unknown
         UNKNOWN,
     };
     pub const sockaddr = struct {
         pub const in = 0;
     };
-    pub extern "imports" fn write(
-        fd: fd_t,
-        ptr: [*]const u8,
-        len: fd_t,
-    ) isize_t;
+    pub fn write(fd: fd_t, ptr: [*]const u8, len: fd_t) isize_t {
+        _ = len;
+        _ = ptr;
+        _ = fd;
+        return 0;
+    }
     pub fn isatty(handle: fd_t) usize_t {
         _ = handle;
         return 0;
@@ -89,9 +112,11 @@ pub const system = struct {
         _ = handle;
         return null;
     }
-    pub fn getErrno(u: isize_t) E {
-        _ = u;
-        return .SUCCESS;
+    pub fn getErrno(u: ?isize_t) E {
+        if (u) |it| {
+            return @enumFromInt(it);
+        }
+        return .UNKNOWN;
     }
     pub fn exit(u: usize_t) noreturn {
         _ = u;
@@ -100,6 +125,13 @@ pub const system = struct {
     pub fn open() void {}
     pub fn close(u: fd_t) isize_t {
         _ = u;
+        return 0;
+    }
+    pub fn openat(fd: fd_t, path: [*:0]const u8, flags: usize_t, mode: mode_t) isize_t {
+        _ = mode;
+        _ = flags;
+        _ = path;
+        _ = fd;
         return 0;
     }
     pub fn pipe() void {}
