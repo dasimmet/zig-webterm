@@ -1,6 +1,27 @@
 const std = @import("std");
 pub const fs = @import("wasm_fs.zig");
 
+pub const std_options = struct {
+    pub const log_level = .info;
+    pub fn logFn(
+        comptime message_level: std.log.Level,
+        comptime scope: @Type(.EnumLiteral),
+        comptime format: []const u8,
+        args: anytype,
+    ) void {
+        _ = args;
+        _ = format;
+        _ = scope;
+        _ = message_level;
+        // const level_txt = comptime message_level.asText();
+        // const prefix2 = if (scope == .default) ": " else "(" ++ @tagName(scope) ++ "): ";
+        // const stderr = std.io.getStdErr().writer();
+        // std.debug.getStderrMutex().lock();
+        // defer std.debug.getStderrMutex().unlock();
+        // nosuspend stderr.print(level_txt ++ prefix2 ++ format ++ "\n", args) catch return;
+    }
+};
+
 pub const os = @This();
 pub const isize_t = i32;
 pub const usize_t = u32;
@@ -17,8 +38,9 @@ pub const system = struct {
     pub export const STDIN_FILENO: fd_t = 0;
     pub export const STDOUT_FILENO: fd_t = 1;
     pub export const STDERR_FILENO: fd_t = 2;
-    pub const CLOCK = enum(u16) {
-        MONOTONIC,
+    pub const CLOCK = struct {
+        pub const MONOTONIC = 0;
+        pub const REALTIME = 1;
     };
 
     pub const timespec = struct {
@@ -36,6 +58,9 @@ pub const system = struct {
         pub const IFCHR = 0o2;
         pub const IFDIR = 0o3;
         pub const IFIFO = 0o4;
+        pub const IFLNK = 0o5;
+        pub const IFREG = 0o6;
+        pub const IFSOCK = 0o7;
         pub fn ISCHR() void {}
     };
 
@@ -48,14 +73,28 @@ pub const system = struct {
 
     pub const Stat = struct {
         mode: usize_t,
-        pub fn atime(self: Stat) void {
+        ino: ino_t,
+        size: u64,
+        pub fn atime(self: Stat) timespec {
             _ = self;
+            return .{
+                .tv_sec = 0,
+                .tv_nsec = 0,
+            };
         }
-        pub fn mtime(self: Stat) void {
+        pub fn mtime(self: Stat) timespec {
             _ = self;
+            return .{
+                .tv_sec = 0,
+                .tv_nsec = 0,
+            };
         }
-        pub fn ctime(self: Stat) void {
+        pub fn ctime(self: Stat) timespec {
             _ = self;
+            return .{
+                .tv_sec = 0,
+                .tv_nsec = 0,
+            };
         }
     };
 
@@ -103,8 +142,12 @@ pub const system = struct {
     pub fn write(fd: fd_t, ptr: [*]const u8, len: usize_t) isize_t {
         _ = len;
         _ = ptr;
-        _ = fd;
-        return -1;
+        return switch (fd) {
+            STDIN_FILENO => -1,
+            STDOUT_FILENO => 0,
+            STDERR_FILENO => 0,
+            else => return -1,
+        };
     }
     pub fn isatty(handle: fd_t) usize_t {
         _ = handle;
@@ -136,7 +179,10 @@ pub const system = struct {
 
         const len = std.mem.indexOfSentinel(u8, 0, path);
         if (fs.map.get(path[0..len])) |entry| {
-            fs.fd_table.appendAssumeCapacity(entry);
+            fs.fd_table.appendAssumeCapacity(.{
+                .asset = entry,
+                .path = path[0..len],
+            });
             return 0;
         } else {
             return -1;
@@ -150,14 +196,16 @@ pub const system = struct {
     pub fn lseek() void {}
     pub fn pread() void {}
     pub fn read(fd: fd_t, ptr: [*]u8, len: usize_t) isize_t {
-        if (fs.fd_table.items.len < fd) return -1;
-        const entry = fs.fd_table.items[fd].?;
-        const body = entry.decompressBodyAlloc(std.heap.page_allocator) catch @panic("OOM");
-        @memcpy(
-            ptr[0..len],
-            body,
-        );
-        return 0;
+        if (fs.getFile(fd)) |entry| {
+            var body = entry.getBody();
+            @memcpy(
+                ptr[0..len],
+                body,
+            );
+            return 0;
+        } else {
+            return -1;
+        }
     }
     pub fn readv() void {}
     pub fn pwrite() void {}
@@ -165,5 +213,9 @@ pub const system = struct {
     pub fn pwrite_sym() void {}
     pub fn writev() void {}
     pub fn fsync() void {}
-    pub fn fstat() void {}
+    pub fn fstat(fd: fd_t, s: *Stat) ?isize_t {
+        _ = s;
+        _ = fd;
+        return null;
+    }
 };

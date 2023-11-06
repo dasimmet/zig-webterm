@@ -1,13 +1,17 @@
 const std = @import("std");
 pub const zig = @import("zig");
 pub const os = @import("wasm_mini_os.zig");
+pub const std_options = os.std_options;
 
 // pub const main = zig.main;
+pub const main = test_main;
 
-pub fn main() !void {
+pub fn test_main() !void {
     const cwd = std.fs.cwd();
     const fd = try cwd.openFile("index.html", .{});
     defer fd.close();
+
+    _ = try fd.stat();
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
