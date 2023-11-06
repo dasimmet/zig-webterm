@@ -1,12 +1,32 @@
 const std = @import("std");
-const asset_fs = @import("fs");
+
+pub const fs = struct {
+    pub const fd_table_t = std.ArrayList(?asset_fs.EntryType);
+    const asset_fs = @import("fs");
+    const map = asset_fs.map();
+
+    pub var fd_table: fd_table_t = undefined;
+    pub var initialized = false;
+    pub fn initialize() void {
+        if (!initialized) {
+            fd_table = fd_table_t.initCapacity(
+                std.heap.page_allocator,
+                std.math.maxInt(os.usize_t),
+            ) catch @panic("OOM");
+            initialized = true;
+            while (fd_table.items.len < 3) {
+                fd_table.appendAssumeCapacity(null);
+            }
+        }
+    }
+};
 
 pub const os = @This();
 pub const isize_t = i32;
 pub const usize_t = u32;
 pub const PATH_MAX = 4096;
 pub const system = struct {
-    pub const fd_t = isize_t;
+    pub const fd_t = usize_t;
     pub const uid_t = void;
     pub const pid_t = void;
     pub const gid_t = void;
@@ -101,14 +121,9 @@ pub const system = struct {
         pub const in = 0;
     };
     pub fn write(fd: fd_t, ptr: [*]const u8, len: usize_t) isize_t {
+        _ = len;
+        _ = ptr;
         _ = fd;
-        const map = asset_fs.map();
-        const slice = ptr[0..len];
-        std.debug.assert(slice.len == len);
-        if (map.get(slice)) |e| {
-            _ = e;
-            return 0;
-        }
         return -1;
     }
     pub fn isatty(handle: fd_t) usize_t {
@@ -129,17 +144,23 @@ pub const system = struct {
         _ = u;
         while (true) {}
     }
-    pub fn open() void {}
     pub fn close(u: fd_t) isize_t {
         _ = u;
         return 0;
     }
     pub fn openat(fd: fd_t, path: [*:0]const u8, flags: usize_t, mode: mode_t) isize_t {
-        _ = mode;
         _ = flags;
-        _ = path;
         _ = fd;
-        return 0;
+        if (mode != O.RDONLY) return -1;
+        fs.initialize();
+
+        const len = std.mem.indexOfSentinel(u8, 0, path);
+        if (fs.map.get(path[0..len])) |entry| {
+            fs.fd_table.appendAssumeCapacity(entry);
+            return 0;
+        } else {
+            return -1;
+        }
     }
     pub fn pipe() void {}
     pub fn fcntl() void {}
@@ -148,10 +169,14 @@ pub const system = struct {
     pub fn ftruncate() void {}
     pub fn lseek() void {}
     pub fn pread() void {}
-    pub fn read(fd: fd_t, ptr: [*]const u8, len: usize_t) isize_t {
-        _ = len;
-        _ = ptr;
-        _ = fd;
+    pub fn read(fd: fd_t, ptr: [*]u8, len: usize_t) isize_t {
+        if (fs.fd_table.items.len < fd) return -1;
+        const entry = fs.fd_table.items[fd].?;
+        const body = entry.decompressBodyAlloc(std.heap.page_allocator) catch @panic("OOM");
+        @memcpy(
+            ptr[0..len],
+            body,
+        );
         return 0;
     }
     pub fn readv() void {}
