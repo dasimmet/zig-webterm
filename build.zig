@@ -33,7 +33,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseSmall,
         .use_lld = true,
     });
-    client_exe.addSystemFrameworkPath(emsdk.relative_path(
+    client_exe.addSystemFrameworkPath(emsdk.relativePath(
         "upstream/emscripten/cache/sysroot",
     ));
     client_exe.linkLibC();
@@ -106,4 +106,29 @@ pub fn build(b: *std.Build) void {
     // This will evaluate the `test` step rather than the default, which is "install".
     const ptytest_step = b.step("ptytest", "Run ptytest");
     ptytest_step.dependOn(&b.addRunArtifact(ptytest).step);
+
+    var zig = ZBuild.Step.Sdk.init(.{
+        .owner = b,
+        .name = "zig",
+        .url = .{ .resolved = "https://github.com/ziglang/zig/archive/1b0b46a8a9f5ed3ebaf35e3018fd5402957552ae.tar.gz" },
+        .hash = .{ .resolved = "1220ed8db97176353b72d800fe715d0228a591a20236849e374999afbc1fd650b7ea" },
+    });
+    const zig_exe = b.addExecutable(.{
+        .name = "zig-wasm",
+        .root_source_file = .{ .path = "src/zig.zig" },
+        .target = .{
+            .os_tag = .freestanding,
+            .cpu_arch = .wasm32,
+        },
+        .zig_lib_dir = zig.relativePath("lib"),
+    });
+    const zig_mod = b.addModule("zig", .{
+        .source_file = zig.relativePath("src/main.zig"),
+    });
+    zig_mod.dependencies.put("build_options", b.addModule("build_options", .{
+        .source_file = .{ .path = "src/zig_options.zig" },
+    })) catch @panic("OOM");
+    zig_exe.addModule("zig", zig_mod);
+    const zig_step = b.step("zig", "build zig for wasm");
+    zig_step.dependOn(&zig_exe.step);
 }

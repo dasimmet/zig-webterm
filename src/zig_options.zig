@@ -1,0 +1,9 @@
+pub const force_gpa = false;
+pub const enable_tracy = false;
+pub const value_tracing = false;
+pub const only_c = false;
+pub const only_reduce = false;
+pub const have_llvm = false;
+pub const only_core_functionality = false;
+pub const version = "0.0.0-custom";
+pub const mem_leak_frames = 0;

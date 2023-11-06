@@ -4,8 +4,8 @@
     .version = "0.0.1",
     .dependencies = .{
         .ZBuild = .{
-            .url = "https://gitlab.com/dasimmet/zbuild/-/archive/4ca69e0810f8d425e7c32b7f023358af574d1454/zbuild.tar.gz",
-            .hash = "1220d57d1570fb7acc6ea428a301644e1f4d6d7865af712f53b9cf9cde407596f88e",
+            .url = "https://gitlab.com/dasimmet/zbuild/-/archive/5610b739a7520fad95025e3e57075d5c3431709d/zbuild.tar.gz",
+            .hash = "1220d5e7e4553a2db6c405014ebbc6013dd37cd737aecafc26ec35763fb5c4b54bcd",
         },
         .zigjs = .{
             .url = "https://github.com/dasimmet/zig-js/archive/68a1784b799019f8c6debc26c14c414e2e19447b.tar.gz",

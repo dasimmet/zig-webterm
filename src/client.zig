@@ -1,6 +1,6 @@
 pub const std = @import("std");
 // an example wasm client that can run eval on the js side
-
+pub const os = @import("mini_os.zig");
 // const _ = std.testing.refAllDecls(js);
 pub const ext = struct {
     pub extern "imports" fn eval(ptr: usize, len: usize) u32;
@@ -52,6 +52,9 @@ pub fn eval_str(source: []const u8) u32 {
 export fn main() void {
     const stdout = std.io.getStdOut();
     _ = stdout.write("WOLOLO") catch @panic("WHY!?");
+
+    const cwd = std.fs.cwd();
+    _ = cwd;
     // std.log.debug("DEBUG", .{});
     // std.log.info("INFO", .{});
     // std.log.warn("WARN", .{});
