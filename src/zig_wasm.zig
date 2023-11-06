@@ -1,6 +1,6 @@
 const std = @import("std");
 pub const zig = @import("zig");
-pub const os = @import("mini_os.zig");
+pub const os = @import("wasm_mini_os.zig");
 
 // pub const main = zig.main;
 

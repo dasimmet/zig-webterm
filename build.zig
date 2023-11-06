@@ -115,7 +115,7 @@ pub fn build(b: *std.Build) void {
     });
     const zig_exe = b.addExecutable(.{
         .name = "zig-wasm",
-        .root_source_file = .{ .path = "src/zig.zig" },
+        .root_source_file = .{ .path = "src/zig_wasm.zig" },
         .target = .{
             .os_tag = .freestanding,
             .cpu_arch = .wasm32,
