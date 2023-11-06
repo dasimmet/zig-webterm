@@ -178,12 +178,8 @@ pub const system = struct {
         fs.initialize();
 
         const len = std.mem.indexOfSentinel(u8, 0, path);
-        if (fs.map.get(path[0..len])) |entry| {
-            fs.fd_table.appendAssumeCapacity(.{
-                .asset = entry,
-                .path = path[0..len],
-            });
-            return 0;
+        if (fs.File.open(path[0..len])) |file_d| {
+            return @intCast(file_d);
         } else {
             return -1;
         }
@@ -196,8 +192,8 @@ pub const system = struct {
     pub fn lseek() void {}
     pub fn pread() void {}
     pub fn read(fd: fd_t, ptr: [*]u8, len: usize_t) isize_t {
-        if (fs.getFile(fd)) |entry| {
-            var body = entry.getBody();
+        if (fs.File.get(fd)) |entry| {
+            var body = entry.body();
             @memcpy(
                 ptr[0..len],
                 body,
@@ -214,8 +210,15 @@ pub const system = struct {
     pub fn writev() void {}
     pub fn fsync() void {}
     pub fn fstat(fd: fd_t, s: *Stat) ?isize_t {
-        _ = s;
-        _ = fd;
-        return null;
+        if (fs.File.get(fd)) |entry| {
+            const meta = entry.asset.?.metadata;
+            s.* = .{
+                .mode = 0o777,
+                .ino = 0,
+                .size = @truncate(meta.size),
+            };
+            return 0;
+        }
+        return -1;
     }
 };

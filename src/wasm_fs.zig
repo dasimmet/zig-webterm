@@ -7,21 +7,34 @@ pub const File = struct {
     pos: usize = 0,
     decompressed_body: ?[]const u8 = null,
     path: ?[]const u8 = null,
-    pub fn getBody(self: *File) []const u8 {
+
+    pub fn body(self: *File) []const u8 {
         if (self.decompressed_body == null) {
             self.decompressed_body = self.asset.?.decompressBodyAlloc(std.heap.page_allocator) catch @panic("OOM");
         }
         return self.decompressed_body.?;
     }
-};
 
-pub const map = asset_fs.map();
-pub fn getFile(fd: usize) ?*File {
-    if (fd_table.items.len < fd) return null;
-    var file = &fd_table.items[fd - 1];
-    _ = file.getBody();
-    return file;
-}
+    pub const map = asset_fs.map();
+    pub fn open(path: []const u8) ?usize {
+        if (map.get(path)) |entry| {
+            fd_table.appendAssumeCapacity(.{
+                .asset = entry,
+                .path = path,
+            });
+            const fd = fd_table.items.len - 1;
+            var file = get(fd).?;
+            _ = file.body();
+            return fd;
+        }
+        return null;
+    }
+    pub fn get(fd: usize) ?*File {
+        if (fd_table.items.len < fd) return null;
+        var file = &fd_table.items[fd - 1];
+        return file;
+    }
+};
 
 pub var fd_table: fd_table_t = undefined;
 pub var initialized = false;
