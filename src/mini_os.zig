@@ -3,6 +3,9 @@ pub const isize_t = i32;
 pub const usize_t = u32;
 pub const system = struct {
     pub const fd_t = isize_t;
+    pub const uid_t = void;
+    pub const pid_t = void;
+    pub const gid_t = void;
     pub const ino_t = usize_t;
     pub const mode_t = usize_t;
     pub const timespec_t = usize_t;
@@ -10,17 +13,46 @@ pub const system = struct {
     pub export const STDIN_FILENO: fd_t = 0;
     pub export const STDOUT_FILENO: fd_t = 1;
     pub export const STDERR_FILENO: fd_t = 2;
+    pub export const CLOCK = enum(u16) {
+        MONOTONIC,
+    };
+
+    pub const timespec = struct {
+        tv_sec: usize_t,
+        tv_nsec: usize_t,
+    };
+
     pub const AT = struct {
         pub const FDCWD = 3;
     };
+
     pub const S = struct {
+        pub const IFMT = 0o0;
+        pub const IFBLK = 0o1;
+        pub const IFCHR = 0o2;
+        pub const IFDIR = 0o3;
+        pub const IFIFO = 0o4;
         pub fn ISCHR() void {}
     };
+
     pub const O = struct {
         pub const RDONLY = 0o0;
         pub const WRONLY = 0o1;
         pub const RDWR = 0o2;
         pub const CLOEXEC = 0o4;
+    };
+
+    pub const Stat = struct {
+        mode: usize_t,
+        pub fn atime(self: Stat) void {
+            _ = self;
+        }
+        pub fn mtime(self: Stat) void {
+            _ = self;
+        }
+        pub fn ctime(self: Stat) void {
+            _ = self;
+        }
     };
 
     pub const E = enum(u16) {
@@ -40,14 +72,6 @@ pub const system = struct {
         CONNRESET,
         BUSY,
         UNKNOWN,
-    };
-    pub const Stat = struct {
-        pub fn atime(self: Stat) void {
-            _ = self;
-        }
-        pub fn mtime(self: Stat) void {
-            _ = self;
-        }
     };
     pub const sockaddr = struct {
         pub const in = 0;
@@ -78,6 +102,10 @@ pub const system = struct {
         _ = u;
         return 0;
     }
+    pub fn pipe() void {}
+    pub fn fcntl() void {}
+    pub fn fork() void {}
+    pub fn execve() void {}
     pub fn ftruncate() void {}
     pub fn lseek() void {}
     pub fn pread() void {}
@@ -87,5 +115,6 @@ pub const system = struct {
     pub fn pwritev() void {}
     pub fn pwrite_sym() void {}
     pub fn writev() void {}
+    pub fn fsync() void {}
     pub fn fstat() void {}
 };
