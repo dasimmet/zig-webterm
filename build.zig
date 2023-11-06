@@ -122,6 +122,7 @@ pub fn build(b: *std.Build) void {
         },
         .zig_lib_dir = zig.relativePath("lib"),
     });
+    zig_exe.rdynamic = true;
     const zig_mod = b.addModule("zig", .{
         .source_file = zig.relativePath("src/main.zig"),
     });

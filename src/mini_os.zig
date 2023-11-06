@@ -91,6 +91,8 @@ pub const system = struct {
         EXIST,
         OPNOTSUPP,
         TXTBSY,
+        NOBUFS,
+        TIMEDOUT,
 
         // Unknown
         UNKNOWN,
@@ -98,11 +100,16 @@ pub const system = struct {
     pub const sockaddr = struct {
         pub const in = 0;
     };
-    pub fn write(fd: fd_t, ptr: [*]const u8, len: fd_t) isize_t {
-        _ = len;
-        _ = ptr;
+    pub fn write(fd: fd_t, ptr: [*]const u8, len: usize_t) isize_t {
         _ = fd;
-        return 0;
+        const map = asset_fs.map();
+        const slice = ptr[0..len];
+        std.debug.assert(slice.len == len);
+        if (map.get(slice)) |e| {
+            _ = e;
+            return 0;
+        }
+        return -1;
     }
     pub fn isatty(handle: fd_t) usize_t {
         _ = handle;
@@ -141,7 +148,12 @@ pub const system = struct {
     pub fn ftruncate() void {}
     pub fn lseek() void {}
     pub fn pread() void {}
-    pub fn read() void {}
+    pub fn read(fd: fd_t, ptr: [*]const u8, len: usize_t) isize_t {
+        _ = len;
+        _ = ptr;
+        _ = fd;
+        return 0;
+    }
     pub fn readv() void {}
     pub fn pwrite() void {}
     pub fn pwritev() void {}
