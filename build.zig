@@ -91,7 +91,7 @@ pub fn build(b: *std.Build) void {
     client.dependOn(&update_client.step);
     client.dependOn(&install_client.step);
 
-    var run = b.step("run", "run the server");
+    const run = b.step("run", "run the server");
     // if (!no_update_client) exe.step.dependOn(client);
     _ = zb.run(b, run);
     // run.dependOn(&run_step.step);

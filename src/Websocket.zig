@@ -73,8 +73,8 @@ pub const ContextManager = struct {
         self.lock.lock();
         defer self.lock.unlock();
 
-        var ctx = try self.allocator.create(Context);
-        var userName = try std.fmt.allocPrint(
+        const ctx = try self.allocator.create(Context);
+        const userName = try std.fmt.allocPrint(
             self.allocator,
             "{s}{d}",
             .{ self.usernamePrefix, self.contexts.items.len },
